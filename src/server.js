@@ -51,7 +51,65 @@ function execute(action, payload={}, token='') {
   if(action==='inbox') return {invitations:db.invitations.filter(i=>i.userId===me.id&&i.status==='pending').map(i=>({...i,event:db.events.find(e=>e.id===i.eventId),from:publicUser(db.users.find(u=>u.id===i.from))})),friendRequests:db.friendRequests.filter(r=>r.to===me.id).length};
   fail('Thao tác không được hỗ trợ.',404);
 }
-function response(res,status,data){res.writeHead(status,{'content-type':'application/json; charset=utf-8','access-control-allow-origin':'*'});res.end(JSON.stringify(data));}
-const api=http.createServer((req,res)=>{if(req.method==='OPTIONS'){res.writeHead(204,{'access-control-allow-origin':'*','access-control-allow-headers':'content-type,authorization','access-control-allow-methods':'GET,POST,OPTIONS'});return res.end();}const u=new URL(req.url,'http://localhost');if(u.pathname==='/api'){let body='';req.on('data',c=>body+=c);req.on('end',()=>{try{const input=body?JSON.parse(body):{};const token=(req.headers.authorization||'').replace(/^Bearer\s+/i,'')||input.token||'';response(res,200,{ok:true,data:execute(input.action,input.payload||{},token)});}catch(e){response(res,e.status||400,{ok:false,error:e.message});}});return;}const p=u.pathname==='/'?'index.html':decodeURIComponent(u.pathname.slice(1));const file=path.resolve(WEB,p);if(!file.startsWith(path.resolve(WEB)+path.sep)){res.writeHead(403);return res.end();}fs.readFile(file,(e,data)=>{if(e){res.writeHead(404);return res.end('Not found');}const type=file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':file.endsWith('.svg')?'image/svg+xml':'text/html';res.writeHead(200,{'content-type':type+'; charset=utf-8'});res.end(data);});});
+function response(res, status, data) {
+  res.writeHead(status, {'content-type':'application/json; charset=utf-8','access-control-allow-origin':'*'});
+  res.end(JSON.stringify(data));
+}
+const MIME = {
+  '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf-8',
+  '.js':'text/javascript; charset=utf-8', '.svg':'image/svg+xml',
+  '.jpg':'image/jpeg', '.png':'image/png', '.webp':'image/webp',
+  '.mp4':'video/mp4', '.ttf':'font/ttf', '.woff2':'font/woff2'
+};
+function serveStatic(req, res, pathname) {
+  if (!['GET','HEAD'].includes(req.method)) { res.writeHead(405, {Allow:'GET, HEAD'}); res.end(); return; }
+  let relative;
+  try { relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1)); }
+  catch { res.writeHead(400); res.end(); return; }
+  const file = path.resolve(WEB, relative);
+  if (!file.startsWith(path.resolve(WEB) + path.sep)) { res.writeHead(403); res.end(); return; }
+  fs.stat(file, (error, stat) => {
+    if (error || !stat.isFile()) { res.writeHead(404); res.end('Not found'); return; }
+    const headers = {'Content-Type':MIME[path.extname(file)] || 'application/octet-stream','Accept-Ranges':'bytes','Cache-Control':'no-cache'};
+    let start = 0, end = stat.size - 1, status = 200;
+    if (req.headers.range) {
+      const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+      if (!range || (!range[1] && !range[2])) { res.writeHead(416, {'Content-Range':`bytes */${stat.size}`}); res.end(); return; }
+      if (!range[1]) start = Math.max(0, stat.size - Number(range[2]));
+      else { start = Number(range[1]); if (range[2]) end = Math.min(Number(range[2]), end); }
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= stat.size) {
+        res.writeHead(416, {'Content-Range':`bytes */${stat.size}`}); res.end(); return;
+      }
+      status = 206; headers['Content-Range'] = `bytes ${start}-${end}/${stat.size}`;
+    }
+    headers['Content-Length'] = Math.max(0, end - start + 1);
+    res.writeHead(status, headers);
+    if (req.method === 'HEAD' || stat.size === 0) { res.end(); return; }
+    const stream = fs.createReadStream(file, {start, end});
+    stream.on('error', () => res.destroy());
+    res.on('close', () => stream.destroy());
+    stream.pipe(res);
+  });
+}
+const api = http.createServer((req, res) => {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {'access-control-allow-origin':'*','access-control-allow-headers':'content-type,authorization','access-control-allow-methods':'GET,POST,OPTIONS'});
+    res.end(); return;
+  }
+  const u = new URL(req.url, 'http://localhost');
+  if (u.pathname === '/api') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const input = body ? JSON.parse(body) : {};
+        const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || input.token || '';
+        response(res, 200, {ok:true, data:execute(input.action, input.payload || {}, token)});
+      } catch (error) { response(res, error.status || 400, {ok:false, error:error.message}); }
+    });
+    return;
+  }
+  serveStatic(req, res, u.pathname);
+});
 api.listen(PORT,()=>console.log(`Evently web: http://localhost:${PORT}`));
 const socket=net.createServer(conn=>{conn.setEncoding('utf8');let buffer='';conn.on('data',chunk=>{buffer+=chunk;while(buffer.includes('\n')){const i=buffer.indexOf('\n'),line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);if(!line)continue;try{const m=JSON.parse(line),data=execute(m.action,m.payload||{},m.token||'');conn.write(JSON.stringify({id:m.id||null,ok:true,data})+'\n');}catch(e){conn.write(JSON.stringify({id:null,ok:false,error:e.message})+'\n');}}});});socket.listen(SOCKET_PORT,()=>console.log(`Evently TCP line socket: 127.0.0.1:${SOCKET_PORT}`));
