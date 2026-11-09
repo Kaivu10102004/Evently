@@ -16,4 +16,19 @@ The header and hero follow the reference proportions: a compact header, a single
 
 Cormorant Garamond is used for the Vietnamese display heading because Instrument Serif lacks the required Vietnamese glyphs. Instrument Serif is used for the Latin wordmark. Inter is used for interface text. The fonts are served locally and their OFL licenses are included in `public/fonts`.
 
-Playback respects reduced motion and data saving preferences. It pauses while the tab is hidden or the background is outside the viewport, and has an explicit pause/play control.
+Playback respects reduced motion and data saving preferences. It pauses while the tab is hidden or the background is outside the viewport.
+
+The visible playback button was removed at the user’s request. Reduced-motion and data-saving preferences still pause the background automatically.
+
+## Member workspace
+
+The workspace now uses the same wordmark, Cormorant display headings, Inter interface text, white space and black pill actions as the introduction. Desktop navigation is horizontal; phones use a labelled bottom navigation bar.
+
+- Overview: typographic metrics, one meadow feature, the member’s upcoming schedule and activity.
+- Events: editorial date artwork, title/location/organizer hierarchy and visible detail actions on mobile.
+- Friends: simple connection rows, search, pending states and a confirmation before removing a connection.
+- Inbox: explicit event/friend/join categories, count filters, accept and decline actions.
+- Account: a split composition with a quiet meadow image and a clean form.
+- Dialogs: shared form fields, inline errors, keyboard focus containment, Escape dismissal and focus return. The document handles events from the separately mounted dialog root. Editing preserves local date/time.
+
+Visual checks use an isolated development instance on port 3100 and a temporary database; illustrative users and events are not part of the repository or the main application's data.

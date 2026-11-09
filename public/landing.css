@@ -151,22 +151,6 @@ a, button { -webkit-tap-highlight-color: transparent; }
   pointer-events: none;
 }
 .meadow-film { display: block; width: 100%; height: 100%; object-fit: fill; }
-.meadow-motion {
-  position: absolute;
-  z-index: 2;
-  right: 20px;
-  bottom: 18px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid #ffffff75;
-  border-radius: 50%;
-  background: #17200f70;
-  color: #fff;
-  backdrop-filter: blur(6px);
-}
-.meadow-motion svg { width: 16px; height: 16px; }
 .landing-story { padding: 96px clamp(24px, 9vw, 160px); background: #faf9f7; }
 .story-top { display: flex; justify-content: space-between; gap: 40px; padding-bottom: 42px; border-bottom: 1px solid #e6e3df; scroll-margin-top: 30px; }
 .story-top > span { color: #73716c; font-size: 11px; letter-spacing: .13em; line-height: 1.8; }
@@ -179,36 +163,6 @@ a, button { -webkit-tap-highlight-color: transparent; }
 .landing-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 28px clamp(24px, 5.6vw, 126px); font-size: 12px; color: #78736e; }
 .footer-wordmark { font: 400 29px 'Evently Wordmark', Georgia, serif; color: #111; }
 .landing-footer small { font-size: 10px; letter-spacing: .1em; }
-/* Account screens and the app share the same quiet type and black primary action. */
-.auth-screen { min-height: 100svh; padding: 85px 24px 40px; display: grid; place-items: center; background: #faf9f7; }
-.auth-back { position: absolute; top: 27px; left: clamp(24px, 6vw, 90px); border: 0; background: none; color: #625f5c; font-size: 13px; min-height: 44px; }
-.auth-panel { width: min(440px, 100%); padding: 40px; background: #fff; border: 1px solid #e9e6e1; }
-.auth-panel .brand { padding-bottom: 38px; }
-.auth-kicker { color: #73716d; font-size: 9px; letter-spacing: .14em; margin: 0 0 14px; }
-.auth-panel h1 { font: 400 40px/1.08 'Evently Display', Georgia, serif; letter-spacing: -.03em; margin: 0; }
-.auth-intro { color: #716c67; font-size: 13px; line-height: 1.6; margin: 10px 0 27px; }
-.auth-form { display: grid; gap: 15px; }
-.auth-form .field label { color: #4e4a46; font-size: 12px; }
-.auth-form .field input { padding: 12px; min-height: 44px; border-radius: 3px; border-color: #e5e1dc; }
-.auth-submit { width: 100%; justify-content: center; margin-top: 7px; border-radius: 999px; min-height: 46px; }
-.auth-switch { text-align: center; color: #74706b; font-size: 12px; margin-top: 22px; }
-.auth-switch button { border: 0; background: none; text-decoration: underline; text-underline-offset: 3px; color: #111; min-height: 32px; }
-.nav button.active, .nav button:hover { background: #f3f1ee; color: #161616; }
-.stat, .panel, .friend-card { border-color: #e9e6e2; border-radius: 5px; box-shadow: none; }
-.stat-icon, .stat:nth-child(2) .stat-icon, .stat:nth-child(3) .stat-icon, .stat:nth-child(4) .stat-icon { background: #f2efeb; color: #171717; }
-.welcome h1, .page-head h1, .panel-head h2, .event-info h3 { font-family: 'Evently Display', Georgia, serif; font-weight: 500; letter-spacing: -.025em; }
-.welcome h1, .page-head h1 { font-size: 38px; }
-.panel-head h2 { font-size: 23px; }
-.event-info h3 { font-size: 21px; }
-.btn { background: #111; border-radius: 999px; }
-.btn:hover { background: #333; }
-.btn.secondary { background: #fff; color: #171717; border-color: #ddd8d2; }
-.tag { background: #eeeee9; color: #444; }
-.tag.private { background: #f8eee8; color: #915e48; }
-.event-date, .invite-card { background: #f4f0eb; }
-.event-card, .invite-card, .search, .tabs, .modal { border-radius: 5px; }
-.event-card:hover { border-color: #cac3ba; box-shadow: none; }
-.toast { background: #171717; border-radius: 4px; }
 @media (max-width: 1000px) {
   .landing-nav { grid-template-columns: 1fr auto; }
   .landing-nav nav { display: none; }
@@ -227,7 +181,6 @@ a, button { -webkit-tap-highlight-color: transparent; }
   .meadow-wrap { top: 350px; min-height: 330px; background-size: cover; background-position: 58% center; }
   .meadow-film { object-fit: cover; object-position: 58% center; }
   .meadow-wrap::before { height: 45px; }
-  .meadow-motion { right: 14px; bottom: 14px; }
   .landing-story { padding: 64px 24px; }
   .story-top { display: block; padding-bottom: 30px; }
   .story-top h2 { margin: 22px 0 0; font-size: 45px; }
