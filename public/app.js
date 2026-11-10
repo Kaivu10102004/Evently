@@ -42,32 +42,21 @@ function landing() {
     <header class="landing-nav">
       ${brand()}
       <nav aria-label="Điều hướng chính">
-        <a class="current" href="#cach-hoat-dong">Khám phá</a>
+        <a class="current" href="#hero-heading" aria-current="page">Khám phá</a>
         <button data-action="open-login">Sự kiện</button>
         <button data-action="open-login">Bạn bè</button>
-        <a href="#ve-evently">Về Evently</a>
-        <button data-action="open-login">Đăng nhập</button>
+        <button data-action="open-register">Đăng ký</button>
       </nav>
-      <button class="black-pill nav-cta" data-action="open-register">Tạo sự kiện</button>
+      <button class="black-pill nav-cta" data-action="open-login">Đăng nhập</button>
     </header>
     <section class="landing-hero" aria-labelledby="hero-heading">
       <div class="hero-copy">
         <h1 id="hero-heading">Hẹn nhau, <span>tạo nên</span> kỷ niệm.</h1>
         <p class="hero-description">Nơi bạn tạo sự kiện, kết nối những người thân quen<br>và cùng nhau lưu giữ những khoảnh khắc đáng nhớ.</p>
-        <button class="black-pill hero-cta" data-action="open-register">TẠO CUỘC HẸN ${arrow}</button>
+        <button class="black-pill hero-cta" data-action="open-login">ĐĂNG NHẬP ${arrow}</button>
       </div>
       <div class="meadow-wrap">${meadowArt()}</div>
     </section>
-    <section class="landing-story" id="cach-hoat-dong">
-      <div class="story-top" id="ve-evently"><span>EVENTLY / CÙNG NHAU GẶP GỠ</span><h2>Ngày vui bắt đầu<br>từ một lời hẹn.</h2></div>
-      <div class="story-grid">
-        <article><span>01</span><h3>Tạo một cuộc hẹn</h3><p>Chọn thời gian, địa điểm và chia sẻ điều bạn đang mong chờ.</p></article>
-        <article><span>02</span><h3>Mời bạn bè tham gia</h3><p>Gửi lời mời riêng hoặc mở sự kiện công khai cho những người cùng quan tâm.</p></article>
-        <article><span>03</span><h3>Cùng nhau gặp gỡ</h3><p>Phản hồi lời mời, duyệt người tham gia và sẵn sàng cho một ngày đáng nhớ.</p></article>
-      </div>
-      <button class="black-pill story-cta" data-action="open-register">BẮT ĐẦU VỚI EVENTLY ${arrow}</button>
-    </section>
-    <footer class="landing-footer"><span class="footer-wordmark">evently</span><span>Cho những lần gặp gỡ thật.</span><small>© 2026 EVENTLY</small></footer>
   </main>`;
 }
 function auth() {
@@ -75,7 +64,7 @@ function auth() {
   const register = state.authMode === 'register';
   return `<main class="account-page">
     <header class="account-header"><button class="wordmark-button" data-action="close-auth" aria-label="Về trang giới thiệu">${brand()}</button><button class="quiet-link" data-action="close-auth">Về trang chủ ${arrowRight}</button></header>
-    <div class="account-layout"><section class="account-story"><p class="overline">CHO NHỮNG LẦN GẶP GỠ THẬT</p><h1>Một lời hẹn.<br><span>Thật nhiều kỷ niệm.</span></h1><p>Đặt lịch cho những điều bạn mong đợi,<br>và dành thời gian cho những người bạn thương.</p><div class="account-photo"><img src="/assets/meadow-poster.jpg" alt="Đồng hoa trong ánh hoàng hôn"><span>Hẹn nhau, tạo nên kỷ niệm.</span></div></section>
+    <div class="account-layout"><section class="account-story"><p class="overline">CHO NHỮNG LẦN GẶP GỠ THẬT</p><h1>Một lời hẹn.<br><span>Thật nhiều kỷ niệm.</span></h1><p>Đặt lịch cho những điều bạn mong đợi,<br>và dành thời gian cho những người bạn thương.</p><div class="account-photo"><img src="/assets/meadow-poster.jpg" alt="Đồng hoa trong ánh hoàng hôn"></div></section>
     <section class="account-form-panel" aria-labelledby="account-title"><p class="overline">${register ? 'GIA NHẬP EVENTLY' : 'CHÀO MỪNG TRỞ LẠI'}</p><h2 id="account-title">${register ? 'Bắt đầu một lời hẹn.' : 'Rất vui được gặp bạn.'}</h2><p class="account-intro">${register ? 'Tạo tài khoản để lên lịch và mời bạn bè.' : 'Những cuộc hẹn của bạn đang chờ phía trước.'}</p>
     <form id="auth-form" class="auth-form">
       ${register ? '<div class="field"><label for="auth-name">Họ và tên</label><input id="auth-name" name="name" placeholder="Nguyễn Minh Anh" autocomplete="name" required maxlength="80"></div>' : ''}
@@ -124,7 +113,7 @@ function home() {
 }
 function eventArtwork(e) {
   const d = dateParts(e.startsAt), theme = [...e.title].reduce((sum,c)=>sum+c.charCodeAt(0),0)%4;
-  return `<div class="event-art art-${theme}"><span class="art-note">EVENTLY / ${e.visibility==='private'?'RIÊNG TƯ':'CÔNG KHAI'}</span><span class="art-day">${d.day}</span><span class="art-flower" aria-hidden="true">${icons.spark}</span><span class="art-month">${d.month} · ${new Date(e.startsAt).getFullYear()}</span></div>`;
+  return `<div class="event-art art-${theme}"><span class="art-note">${e.visibility==='private'?'RIÊNG TƯ':'CÔNG KHAI'}</span><span class="art-day">${d.day}</span><span class="art-flower" aria-hidden="true">${icons.spark}</span><span class="art-month">${d.month}<small>${new Date(e.startsAt).getFullYear()}</small></span></div>`;
 }
 function eventCard(e) {
   const d = dateParts(e.startsAt);

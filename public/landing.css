@@ -151,18 +151,7 @@ a, button { -webkit-tap-highlight-color: transparent; }
   pointer-events: none;
 }
 .meadow-film { display: block; width: 100%; height: 100%; object-fit: fill; }
-.landing-story { padding: 96px clamp(24px, 9vw, 160px); background: #faf9f7; }
-.story-top { display: flex; justify-content: space-between; gap: 40px; padding-bottom: 42px; border-bottom: 1px solid #e6e3df; scroll-margin-top: 30px; }
-.story-top > span { color: #73716c; font-size: 11px; letter-spacing: .13em; line-height: 1.8; }
-.story-top h2 { font: 400 clamp(42px, 4.5vw, 65px)/1.04 'Evently Display', Georgia, serif; letter-spacing: -.035em; margin: -8px 0 0; }
-.story-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; padding: 40px 0 42px; }
-.story-grid article > span { font: 400 20px 'Evently Display', serif; color: #79756e; }
-.story-grid h3 { font: 500 24px 'Evently Display', Georgia, serif; margin: 16px 0 10px; }
-.story-grid p { color: #6d6a65; font-size: 14px; line-height: 1.75; max-width: 300px; margin: 0; }
-.story-cta { gap: 20px; font-size: 11px; letter-spacing: .08em; }
-.landing-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 28px clamp(24px, 5.6vw, 126px); font-size: 12px; color: #78736e; }
 .footer-wordmark { font: 400 29px 'Evently Wordmark', Georgia, serif; color: #111; }
-.landing-footer small { font-size: 10px; letter-spacing: .1em; }
 @media (max-width: 1000px) {
   .landing-nav { grid-template-columns: 1fr auto; }
   .landing-nav nav { display: none; }
@@ -181,15 +170,6 @@ a, button { -webkit-tap-highlight-color: transparent; }
   .meadow-wrap { top: 350px; min-height: 330px; background-size: cover; background-position: 58% center; }
   .meadow-film { object-fit: cover; object-position: 58% center; }
   .meadow-wrap::before { height: 45px; }
-  .landing-story { padding: 64px 24px; }
-  .story-top { display: block; padding-bottom: 30px; }
-  .story-top h2 { margin: 22px 0 0; font-size: 45px; }
-  .story-grid { grid-template-columns: 1fr; gap: 28px; padding: 30px 0 34px; }
-  .story-grid h3 { margin-top: 8px; }
-  .story-grid p { max-width: none; }
-  .landing-footer { flex-wrap: wrap; gap: 14px; padding: 24px; }
-  .landing-footer > span:nth-child(2) { order: 3; width: 100%; }
-  .auth-panel { padding: 30px 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }

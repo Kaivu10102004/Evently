@@ -31,4 +31,8 @@ The workspace now uses the same wordmark, Cormorant display headings, Inter inte
 - Account: a split composition with a quiet meadow image and a clean form.
 - Dialogs: shared form fields, inline errors, keyboard focus containment, Escape dismissal and focus return. The document handles events from the separately mounted dialog root. Editing preserves local date/time.
 
-Visual checks use an isolated development instance on port 3100 and a temporary database; illustrative users and events are not part of the repository or the main application's data.
+The public page now ends at the meadow hero. The lower three-step explanation and its footer have been removed. Both prominent public actions open the login form; registration remains available in navigation and from the login form. No links point at removed sections.
+
+Member pages use a single nature palette: white, soft sage, olive ink and readable neutral secondary text. Event date artwork varies only within that palette. Forms, connection cards, invitations and empty states share those surfaces and borders. The account composition has a quiet sage editorial panel and the existing meadow image beside a white form.
+
+The application is served at port 3000. Temporary preview servers and illustrative data are not part of the delivered experience.
