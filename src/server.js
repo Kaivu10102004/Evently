@@ -30,6 +30,11 @@ function execute(action, payload={}, token='') {
   }
   if(action==='login') { const u=db.users.find(x=>x.email===String(payload.email||'').toLowerCase()); if(!u||crypto.scryptSync(String(payload.password||''),u.salt,64).toString('hex')!==u.hash) fail('Email hoặc mật khẩu chưa chính xác.',401); me=u; const s={token:crypto.randomBytes(32).toString('hex'),userId:u.id,expires:Date.now()+30*864e5}; db.sessions.push(s); log(me.id,'auth.login'); save(); return {token:s.token,user:publicUser(me)}; }
   if(action==='logout') { need(); db.sessions=db.sessions.filter(s=>s.token!==token); log(me.id,'auth.logout'); save(); return {ok:true}; }
+  // Public discovery exposes only public event details, host display name and headcount.
+  if(action==='public-events') return db.events.filter(e=>e.visibility==='public').map(e=>({
+    id:e.id,title:e.title,description:e.description,location:e.location,startsAt:e.startsAt,visibility:'public',
+    ownerName:db.users.find(u=>u.id===e.owner)?.name||'Thành viên Evently',attendeeCount:e.attendees.length
+  }));
   if(action==='me') { need(); return publicUser(me); }
   need();
   const users=()=>db.users.filter(u=>u.id!==me.id);
@@ -111,5 +116,10 @@ const api = http.createServer((req, res) => {
   }
   serveStatic(req, res, u.pathname);
 });
-api.listen(PORT,()=>console.log(`Evently web: http://localhost:${PORT}`));
-const socket=net.createServer(conn=>{conn.setEncoding('utf8');let buffer='';conn.on('data',chunk=>{buffer+=chunk;while(buffer.includes('\n')){const i=buffer.indexOf('\n'),line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);if(!line)continue;try{const m=JSON.parse(line),data=execute(m.action,m.payload||{},m.token||'');conn.write(JSON.stringify({id:m.id||null,ok:true,data})+'\n');}catch(e){conn.write(JSON.stringify({id:null,ok:false,error:e.message})+'\n');}}});});socket.listen(SOCKET_PORT,()=>console.log(`Evently TCP line socket: 127.0.0.1:${SOCKET_PORT}`));
+
+const socket=net.createServer(conn=>{conn.setEncoding('utf8');let buffer='';conn.on('data',chunk=>{buffer+=chunk;while(buffer.includes('\n')){const i=buffer.indexOf('\n'),line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);if(!line)continue;try{const m=JSON.parse(line),data=execute(m.action,m.payload||{},m.token||'');conn.write(JSON.stringify({id:m.id||null,ok:true,data})+'\n');}catch(e){conn.write(JSON.stringify({id:null,ok:false,error:e.message})+'\n');}}});});
+if(require.main===module){
+  api.listen(PORT,()=>console.log(`Evently web: http://localhost:${PORT}`));
+  socket.listen(SOCKET_PORT,()=>console.log(`Evently TCP line socket: 127.0.0.1:${SOCKET_PORT}`));
+}
+module.exports={api,socket,execute};

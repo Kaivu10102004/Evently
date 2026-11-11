@@ -4,7 +4,8 @@
   "private": true,
   "description": "Event planning app with account, friendship, invitations, and TCP line socket server",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

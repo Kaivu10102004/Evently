@@ -12,6 +12,20 @@ npm start
 
 Mở `http://localhost:3000`. Máy chủ socket TCP dùng giao thức JSON Lines lắng nghe tại `127.0.0.1:4000`.
 
+## Giao diện sự kiện
+
+Mở `http://localhost:3000/#events` để khám phá sự kiện công khai. Danh sách mặc định hiển thị theo **dòng thời gian dọc**, nhóm theo ngày, ở tab **Sắp tới**. Có thể tìm theo tên/địa điểm và chuyển sang sự kiện đã qua.
+
+Không cần đăng nhập để xem danh sách hoặc chi tiết sự kiện công khai. Khi chọn tham gia hoặc tạo sự kiện, ứng dụng mở popup đăng nhập. Đăng nhập thành công sẽ đưa bạn trở lại sự kiện đã chọn; yêu cầu tham gia vẫn cần được gửi riêng.
+
+## Kiểm tra
+
+```bash
+npm test
+```
+
+Bộ kiểm tra API dùng dữ liệu tạm, độc lập với `data.json` của ứng dụng.
+
 ## Socket JSON Lines
 
 Mỗi yêu cầu là một JSON object trên một dòng, gồm `id`, `action`, `payload` và `token` (nếu đã đăng nhập). Phản hồi cũng là một JSON object trên một dòng. Ví dụ:

@@ -1,13 +1,19 @@
 /* Shared palette: ink, warm white and the meadow's muted green. */
 :root {
-  --ui-ink: #20251f;
-  --ui-muted: #636b60;
-  --ui-line: #dfe4d9;
-  --ui-paper: #fff;
-  --ui-canvas: #f8f9f5;
-  --ui-sage: #edf1e6;
-  --ui-accent: #46533a;
-  --ui-soft-ink: #515c48;
+  --ui-ink: #293423;
+  --ui-muted: #656f5b;
+  --ui-line: #e0e2d3;
+  --ui-paper: #fffdf8;
+  --meadow-pollen: #d7b44e;
+  --meadow-stem: #8d9e70;
+  --meadow-leaf: #a5b68a;
+  --meadow-lilac: #c7b8da;
+  --meadow-cream: #f1e4b7;
+  --meadow-peach: #e5bda4;
+  --ui-canvas: #faf9f4;
+  --ui-sage: #edf0df;
+  --ui-accent: #465731;
+  --ui-soft-ink: #526245;
 }
 :root {
   --ink:#111;

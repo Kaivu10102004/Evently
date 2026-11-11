@@ -1,38 +1,49 @@
-# Evently landing page — reference treatment
+# Evently — visual and interaction reference
 
-The landing page follows the user supplied recording, `Screen Recording 2026-11-09 at 11.50.51 PM.mov`.
+## Landscape and type
 
-The field uses a locally served crop of that footage. It is recorded motion, not a live 3D scene. The previous procedural Three.js approximation was replaced because its camera, field density, lighting and flowers differed from the supplied visual.
+The public landing follows the user-supplied recording, `Screen Recording 2026-11-09 at 11.50.51 PM.mov`. The locally served meadow is recorded footage, not a reconstructed 3D field. Its crop, flower density, camera and lighting remain the visual reference.
 
-- Trim the first 4.15 seconds to exclude the macOS recording controls at the end.
-- Crop the landscape to x=20, y=604, width=2212, height=796.
-- Remove the recorded pointer at x=1140, y=712, width=50, height=58 before cropping.
-- Resize to 1920 pixels wide, 24 fps. Play forward and backward to avoid an abrupt looping cut.
-- Use the first processed frame as the poster for reduced motion and failed autoplay.
+The original footage treatment trims the first 4.15 seconds to exclude recording controls, removes the recorded pointer at x=1140, y=712, width=50, height=58, and crops x=20, y=604, width=2212, height=796. The processed landscape is 1920 pixels wide at 24 fps; forward/reverse playback avoids a hard cut. The first processed frame supplies the poster. The source recording was provided by the user for this project.
 
-The HTML controls, account screens and app remain implemented locally. No component source was copied from the reference website. The source recording is supplied by the user; its landscape asset is used for this project.
+The landing uses a compact wordmark/navigation, one serif headline, a short description, a login action and the landscape. It ends at the meadow; there is no lower explanation section, footer or playback button. The application runs on port 3000.
 
-The header and hero follow the reference proportions: a compact header, a single serif headline, a two-line description, one black pill action, and a landscape that begins around 27% of the reference page width down the page. There are no added hero eyebrows, counters, captions or scroll labels.
+Cormorant Garamond supplies Vietnamese display headings, Instrument Serif the Latin wordmark and Inter interface text. Font files and their OFL licenses are served locally. Member screens use warm paper, sage, olive ink, generous spacing and the same typography. The main introduction remains intact.
 
-Cormorant Garamond is used for the Vietnamese display heading because Instrument Serif lacks the required Vietnamese glyphs. Instrument Serif is used for the Latin wordmark. Inter is used for interface text. The fonts are served locally and their OFL licenses are included in `public/fonts`.
+## Authentication card
 
-Playback respects reduced motion and data saving preferences. It pauses while the tab is hidden or the background is outside the viewport.
+Login and registration are compact ivory dialogs with no logo tile or brand-name heading. The visible text is reduced to a centered serif title, persistent field labels, the primary action and an account-switch link. A join-specific note appears when authentication was requested from an event; general instructions remain available to assistive technology without extra visible copy.
 
-The visible playback button was removed at the user’s request. Reduced-motion and data-saving preferences still pause the background automatically.
+The decorative top band uses peach light, layered sage terrain and larger cream, lilac, gold and pink voxel flowers. Shaded cuboid petals, stems and leaves keep the artwork consistent with the field. Flowers sway independently and a single butterfly floats and beats its wings. All artwork is pointer-transparent and hidden from assistive technology. Transform-based animation pauses while interacting with the form and becomes static with reduced motion.
+
+White fields have olive focus rings. The primary action has a stronger forest-green fill, a round arrow and hover feedback. Email/password autocomplete and paste remain enabled; passwords can be revealed. Login/registration retain inline errors, preserved non-password field values and disabled pending actions.
+
+The existing page remains mounted behind a blurred scrim. Opening the dialog makes background controls inert and pauses the landscape. Initial focus goes to the heading to keep saved-password suggestions from covering the dialog immediately. Tab is contained within the modal; Escape, the scrim and close button dismiss it and return focus. Short screens scroll inside the dialog. Closing resumes landscape playback subject to motion/data-saving preferences.
+
+## Event discovery — default layout
+
+The event list defaults to a **vertical timeline grouped by local calendar day** for both guests and members. The initial period is **Upcoming / Sắp tới**. It does not open in a card grid or require the user to choose the timeline first. The nearest upcoming event appears first; past events appear newest first.
+
+Each compact event row separates time, title, host, location, participation state, attendance count and cover artwork. Upcoming/past tabs, accent-insensitive search, member participation/host/invitation filters and public/private selection operate on real API data. Loading, error, empty and filtered-empty states are explicit. No demonstration events are persisted.
+
+Layout research: https://luma.com/discover and https://luma.com/ho-chi-minh-city. Evently uses its own branding, component code and cover artwork. No Luma event data, images or component source were copied.
+
+Anyone can open `/#events`, browse public events and read their details without a session. The `public-events` API returns an explicit allowlist of display fields, a host display name and attendee count. It excludes private events, participant identities and account records. All member/mutation actions still require authentication.
+
+Selecting Join opens authentication and remembers the event. Successful login or registration reopens that event's details; it does not automatically submit a join request. Cancelling clears the intent. Creating events also requires an account. Logout clears member-specific state before reloading public discovery. Hash routing supports direct links, reload and back navigation.
 
 ## Member workspace
 
-The workspace now uses the same wordmark, Cormorant display headings, Inter interface text, white space and black pill actions as the introduction. Desktop navigation is horizontal; phones use a labelled bottom navigation bar.
+Desktop navigation is horizontal; phones use labelled bottom navigation. Overview presents upcoming plans and activity. Friends uses connection rows, search, pending states and confirmation before removing a connection. Inbox separates event invitations, friend requests and join requests with explicit accept/decline actions. Shared forms and event editing preserve local date/time.
 
-- Overview: typographic metrics, one meadow feature, the member’s upcoming schedule and activity.
-- Events: editorial date artwork, title/location/organizer hierarchy and visible detail actions on mobile.
-- Friends: simple connection rows, search, pending states and a confirmation before removing a connection.
-- Inbox: explicit event/friend/join categories, count filters, accept and decline actions.
-- Account: a split composition with a quiet meadow image and a clean form.
-- Dialogs: shared form fields, inline errors, keyboard focus containment, Escape dismissal and focus return. The document handles events from the separately mounted dialog root. Editing preserves local date/time.
+## Wildlife
 
-The public page now ends at the meadow hero. The lower three-step explanation and its footer have been removed. Both prominent public actions open the login form; registration remains available in navigation and from the login form. No links point at removed sections.
+Four warm-white rabbits are spread across distinct areas of the field, with scale decreasing at greater distance. They have independent phases and pace, short hops, grazing pauses and front/rear glances between sideways movement. Cuboid feet, ears, eyes and a tail make the views readable.
 
-Member pages use a single nature palette: white, soft sage, olive ink and readable neutral secondary text. Event date artwork varies only within that palette. Forms, connection cards, invitations and empty states share those surfaces and borders. The account composition has a quiet sage editorial panel and the existing meadow image beside a white form.
+One Holstein dairy cow occupies a separate patch on the right. Its scale is 1.45 versus the largest rabbit's 1.0, approximately twice the rabbit's rendered length. A stepped barrel body, tapered forehead/cheeks, smaller pink muzzle, embedded charcoal-coloured body voxels, horns, hooves and udder distinguish it from the rabbits.
 
-The application is served at port 3000. Temporary preview servers and illustrative data are not part of the delivered experience.
+The cow has a 24-second cycle of walking, grazing/chewing, looking up, turning and walking back. Two-segment legs use computed knee positions and lifted swing arcs. Jaw, ears, tail and breathing articulate separately. These animations are verified by rendered Canvas pixels as well as the shared lifecycle tests.
+
+Animals are software-rendered cuboid geometry in the video's native 1920×690 coordinates. The canvas and video share responsive fit/crop rules. One local grass patch tracks plate motion; fixed sunset lighting does not reverse when animals turn. Soft ground shadows, green reflected light, matched focus and live grass-derived masks integrate the silhouettes. This is a composite over supplied footage, not a complete depth map or a reconstructed 3D meadow.
+
+All animals share one canvas and video-frame callback and render back to front. Hidden tabs, offscreen backgrounds, authentication dialogs, data-saving and reduced-motion preferences freeze both footage and animals. The poster supplies a static composition. Existing clocks resume after the dialog closes. Two small violet SVG butterflies remain decorative in the landscape.
