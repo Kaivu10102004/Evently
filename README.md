@@ -14,9 +14,20 @@ Mở `http://localhost:3000`. Máy chủ socket TCP dùng giao thức JSON Lines
 
 ## Giao diện sự kiện
 
-Mở `http://localhost:3000/#events` để khám phá sự kiện công khai. Danh sách mặc định hiển thị theo **dòng thời gian dọc**, nhóm theo ngày, ở tab **Sắp tới**. Có thể tìm theo tên/địa điểm và chuyển sang sự kiện đã qua.
+Mở `http://localhost:3000/#events` để khám phá sự kiện công khai. Danh sách mặc định hiển thị theo **dòng thời gian dọc**, nhóm theo ngày, ở tab **Sắp tới**. Bấm **Bộ lọc** cạnh ô tìm kiếm để mở bảng có nhóm mục bên trái và các ô chọn bên phải. Có thể chọn nhiều loại hoạt động, khoảng thời gian và khu vực, xem trước số kết quả rồi bấm **Áp dụng**. Đóng bảng sẽ bỏ các thay đổi chưa áp dụng; có thể gỡ từng điều kiện hoặc xóa tất cả. Bộ lọc dùng được cả khi chưa đăng nhập. Chuyển sang sự kiện đã qua để lọc 7/30 ngày gần đây. Khi tạo/sửa sự kiện, có thể chọn loại hoạt động và nhập khu vực.
 
 Không cần đăng nhập để xem danh sách hoặc chi tiết sự kiện công khai. Khi chọn tham gia hoặc tạo sự kiện, ứng dụng mở popup đăng nhập. Đăng nhập thành công sẽ đưa bạn trở lại sự kiện đã chọn; yêu cầu tham gia vẫn cần được gửi riêng.
+
+## Dữ liệu sự kiện mẫu
+
+Dừng server trước khi tạo dữ liệu, sau đó chạy:
+
+```bash
+npm run seed:demo
+npm start
+```
+
+Lệnh thêm 8 sự kiện công khai mẫu (7 sắp tới, 1 đã qua), dùng múi giờ Việt Nam và không tạo trùng khi chạy lại. Dữ liệu hiện có được giữ nguyên; bản sao trước khi thêm được lưu vào thư mục tạm. Sự kiện mẫu có mô tả nhận diện riêng. `data.json` vẫn được bỏ qua bởi Git.
 
 ## Kiểm tra
 

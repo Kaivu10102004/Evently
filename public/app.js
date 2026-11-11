@@ -1,9 +1,10 @@
 const icons={spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg>',calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>',users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 8v6m3-3h-6"/></svg>',bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>',plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>',pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m9 18 6-6-6-6"/></svg>',check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>',search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>'};
 
+const eventFilters = window.EventlyFilters;
 const state = {
   token: localStorage.getItem('evently-token') || '', user: null, page: location.hash === '#events' ? 'events' : 'home',
   events: [], friends: [], users: [], invitations: [], friendRequests: [], joinRequests: [], activity: [],
-  filter: 'all', query: '', eventPeriod: 'upcoming', eventVisibility: 'all', inboxTab: 'all', authMode: 'login', authOpen: false, authIntent: null, eventsLoading: false, eventsError: ''
+  query: '', eventPeriod: 'upcoming', eventSelection: eventFilters.emptySelection(), eventFilterDraft: null, eventFilterGroup: 'categories', inboxTab: 'all', authMode: 'login', authOpen: false, authIntent: null, eventsLoading: false, eventsError: ''
 };
 const app = document.querySelector('#app');
 const modalRoot = document.querySelector('#modal-root');
@@ -178,16 +179,22 @@ function dateKey(value) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function normalizeSearch(value) { return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d'); }
-function eventMatches(e) {
-  const scope = state.filter === 'all' || (state.filter === 'mine' && isOwner(e)) || (state.filter === 'joined' && state.user && (e.joined || isOwner(e))) || (state.filter === 'invited' && (e.invitation === 'pending' || state.invitations.some(i => i.eventId === e.id)));
-  const visibility = state.eventVisibility === 'all' || state.eventVisibility === e.visibility;
-  return scope && visibility && normalizeSearch(`${e.title} ${e.location} ${e.ownerName || ''}`).includes(normalizeSearch(state.query.trim()));
+function eventMatches(e, selection = state.eventSelection) {
+  const scope = !selection.scopes.length || selection.scopes.some(value =>
+    value === 'mine' ? isOwner(e) : value === 'joined' ? state.user && (e.joined || isOwner(e)) :
+    value === 'invited' && (e.invitation === 'pending' || state.invitations.some(i => i.eventId === e.id)));
+  return scope && (!selection.visibility.length || selection.visibility.includes(e.visibility))
+    && eventFilters.matches(e, {...selection, query:state.query});
+}
+function eventFilterResults(selection) {
+  const now = Date.now();
+  return state.events.filter(e => eventMatches(e, selection) && (state.eventPeriod === 'past' ? new Date(e.startsAt) < now : new Date(e.startsAt) >= now));
 }
 function eventListCard(e) {
   const d = dateParts(e.startsAt), status = eventStatus(e), past = new Date(e.startsAt).getTime() < Date.now();
   const owner = isOwner(e) ? state.user : state.users.find(u => u.id === e.owner) || {name:e.ownerName || 'Thành viên Evently'};
   return `<article class="event-list-card">
-    <div class="event-list-copy"><div class="event-card-top"><time datetime="${esc(e.startsAt)}">${esc(d.time)}</time><span class="event-privacy ${e.visibility==='private'?'is-private':''}">${e.visibility==='private' ? 'Riêng tư' : 'Công khai'}</span></div>
+    <div class="event-list-copy"><div class="event-card-top"><time datetime="${esc(e.startsAt)}">${esc(d.time)}</time><span class="event-privacy ${e.visibility==='private'?'is-private':''}">${e.visibility==='private' ? 'Riêng tư' : 'Công khai'}</span><span class="event-type-label">${eventFilters.categoryLabel(e)}</span></div>
       <h3><button type="button" data-action="detail" data-id="${e.id}">${esc(e.title)}</button></h3>
       <p class="event-organizer">${avatar(owner)}<span>Bởi ${esc(owner.name)}</span></p>
       <p class="event-location">${icons.pin}<span>${esc(e.location)}</span></p>
@@ -208,16 +215,77 @@ function eventTimeline(events) {
   }).join('')}</div>`;
 }
 function searchBox(id, placeholder) { return `<label class="editorial-search">${icons.search}<span class="sr-only">${placeholder}</span><input id="${id}" type="search" placeholder="${placeholder}" value="${esc(state.query)}" autocomplete="off"></label>`; }
+const filterIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h5m4 0h7M4 17h9m4 0h3"/><circle cx="11" cy="7" r="2"/><circle cx="15" cy="17" r="2"/></svg>';
+function eventFilterGroups() {
+  return [
+    {key:'categories',label:'Loại hoạt động',icon:icons.spark,options:eventFilters.categories},
+    {key:'dates',label:'Thời gian',icon:icons.calendar,options:eventFilters.dateOptions(state.eventPeriod).filter(([key])=>key!=='any')},
+    {key:'areas',label:'Khu vực',icon:icons.pin,options:eventFilters.areas(state.events)},
+    ...(state.user ? [
+      {key:'visibility',label:'Quyền tham gia',icon:icons.users,options:[['public','Công khai'],['private','Riêng tư']]},
+      {key:'scopes',label:'Trạng thái',icon:icons.check,options:[['joined','Bạn tham gia'],['mine','Bạn tổ chức'],['invited','Được mời']]}
+    ] : [])
+  ];
+}
+function eventFilterButton() {
+  const count = eventFilters.selectionCount(state.eventSelection);
+  return `<button type="button" class="event-filter-trigger ${count?'has-filters':''}" data-action="open-event-filters" aria-haspopup="dialog" aria-expanded="false" aria-controls="event-filter-dialog">${filterIcon}Bộ lọc${count?`<span class="event-filter-badge" aria-label="${count} điều kiện đang áp dụng">${count}</span>`:''}</button>`;
+}
+function eventFilterSummary() {
+  const active = eventFilterGroups().flatMap(group => state.eventSelection[group.key].map(value => ({group:group.key,value,label:group.options.find(([key])=>key===value)?.[1]||value})));
+  return active.length ? `<div class="event-active-filters" aria-label="Bộ lọc đang áp dụng">${active.slice(0,3).map(item=>`<button type="button" data-action="remove-event-filter" data-group="${item.group}" data-value="${esc(item.value)}" aria-label="Bỏ bộ lọc ${esc(item.label)}">${esc(item.label)}${closeIcon}</button>`).join('')}${active.length>3?`<button type="button" data-action="open-event-filters" aria-label="Xem thêm ${active.length-3} điều kiện lọc">+${active.length-3}</button>`:''}</div>` : '';
+}
+function eventFilterNav() {
+  return eventFilterGroups().map(group => {
+    const count = state.eventFilterDraft[group.key].length, active = state.eventFilterGroup === group.key;
+    return `<button type="button" id="filter-tab-${group.key}" role="tab" aria-controls="event-filter-panel" aria-selected="${active}" tabindex="${active?0:-1}" data-action="event-filter-group" data-group="${group.key}"><span class="filter-group-icon" aria-hidden="true">${group.icon}</span><span>${group.label}</span><span class="filter-group-count" data-count-group="${group.key}" ${count?'':'hidden'} aria-label="${count} mục đã chọn">${count}</span></button>`;
+  }).join('');
+}
+function eventFilterOptions() {
+  const group = eventFilterGroups().find(item=>item.key===state.eventFilterGroup);
+  const candidates = eventFilterResults({...state.eventFilterDraft,[group.key]:[]});
+  return `<fieldset><legend>${group.label}</legend><p class="filter-option-hint">Chọn nhiều mục. Bỏ chọn hết để xem tất cả.</p><div class="filter-option-list">${group.options.map(([value,label],index)=>{
+    const count = candidates.filter(e=>eventMatches(e,{...state.eventFilterDraft,[group.key]:[value]})).length;
+    return `<label class="filter-option" for="filter-option-${group.key}-${index}"><input type="checkbox" id="filter-option-${group.key}-${index}" data-event-filter="${group.key}" value="${esc(value)}" ${state.eventFilterDraft[group.key].includes(value)?'checked':''}><span>${esc(label)}</span><small aria-label="${count} sự kiện">${count}</small></label>`;
+  }).join('') || '<p class="filter-option-empty">Chưa có khu vực để lọc.</p>'}</div></fieldset>`;
+}
+function updateEventFilterDialog(refreshOptions = false, focusSelector = '') {
+  if (!state.eventFilterDraft) return;
+  for (const group of eventFilterGroups()) {
+    const badge = modalRoot.querySelector(`[data-count-group="${group.key}"]`), count = state.eventFilterDraft[group.key].length;
+    if (badge) {badge.textContent=count;badge.hidden=!count;badge.setAttribute('aria-label',`${count} mục đã chọn`);}
+  }
+  if (refreshOptions) {
+    modalRoot.querySelector('.event-filter-groups').innerHTML = eventFilterNav();
+    const panel = modalRoot.querySelector('#event-filter-panel');
+    panel.setAttribute('aria-labelledby',`filter-tab-${state.eventFilterGroup}`);
+    panel.innerHTML = eventFilterOptions();panel.scrollTop=0;
+  }
+  const count = eventFilterResults(state.eventFilterDraft).length;
+  modalRoot.querySelector('#event-filter-result').textContent = state.eventsLoading ? 'Đang tải sự kiện…' : state.eventsError ? 'Chưa tải được sự kiện' : `${count} cuộc hẹn phù hợp`;
+  modalRoot.querySelector('[data-action="reset-event-filter-draft"]').disabled = !eventFilters.selectionCount(state.eventFilterDraft);
+  if (focusSelector) modalRoot.querySelector(focusSelector)?.focus({preventScroll:true});
+}
+function showEventFilters() {
+  state.eventFilterDraft = eventFilters.copySelection(state.eventSelection);
+  state.eventFilterGroup = 'categories';
+  document.querySelector('.event-filter-trigger')?.setAttribute?.('aria-expanded','true');
+  showDialog(`<div class="overlay event-filter-overlay" data-action="overlay-close"><section class="event-filter-dialog" id="event-filter-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <header class="event-filter-header"><div><p class="overline">TÌM CUỘC HẸN CỦA BẠN</p><h2 id="dialog-title" tabindex="-1">Bộ lọc sự kiện<span>.</span></h2><p id="dialog-description">Một vài lựa chọn, những cuộc hẹn hợp ý.</p></div><button type="button" class="event-filter-close" data-action="close-modal" aria-label="Đóng bộ lọc">${closeIcon}</button></header>
+    <div class="event-filter-body"><nav class="event-filter-groups" role="tablist" aria-label="Nhóm bộ lọc" aria-orientation="vertical">${eventFilterNav()}</nav><div class="event-filter-panel" id="event-filter-panel" role="tabpanel" aria-labelledby="filter-tab-categories">${eventFilterOptions()}</div></div>
+    <footer class="event-filter-footer"><p id="event-filter-result" role="status" aria-live="polite"></p><div><button type="button" class="filter-reset-draft" data-action="reset-event-filter-draft">Đặt lại</button><button type="button" class="filter-apply" data-action="apply-event-filters">Áp dụng ${arrowRight}</button></div></footer>
+  </section></div>`, '#dialog-title');
+  updateEventFilterDialog();
+}
 function eventsPage() {
-  const now = Date.now(), matched = state.events.filter(eventMatches);
+  const now = Date.now(), matched = state.events.filter(e => eventMatches(e));
   const periods = {upcoming:matched.filter(e => new Date(e.startsAt).getTime() >= now),past:matched.filter(e => new Date(e.startsAt).getTime() < now)};
   const events = periods[state.eventPeriod].slice().sort((a,b) => (new Date(a.startsAt)-new Date(b.startsAt)) * (state.eventPeriod==='past' ? -1 : 1));
-  const hasFilters = state.query.trim() || state.filter !== 'all' || state.eventVisibility !== 'all';
-  const scopes = [['all','Khám phá'],['joined','Bạn tham gia'],['mine','Bạn tổ chức'],['invited','Được mời']];
+  const hasFilters = state.query.trim() || eventFilters.selectionCount(state.eventSelection);
   return `<section class="events-page"><header class="events-heading"><div class="events-title-block"><p class="overline">DÀNH THỜI GIAN CHO NHỮNG ĐIỀU BẠN THÍCH</p><div class="events-title-line"><h1>Sự kiện<span>.</span></h1><span class="events-bouquet" aria-hidden="true">${meadowSprig()}</span></div><p>Tìm một cuộc hẹn. Mang về những kỷ niệm.</p></div><button class="btn" data-action="create">${icons.plus} Tạo sự kiện</button></header>
-    <div class="events-navigation"><div class="event-periods" aria-label="Thời gian sự kiện">${[['upcoming','Sắp tới'],['past','Đã qua']].map(([value,label])=>`<button type="button" data-period="${value}" class="${state.eventPeriod===value?'active':''}" aria-pressed="${state.eventPeriod===value}">${label}<span>${periods[value].length}</span></button>`).join('')}</div>${searchBox('event-search','Tìm sự kiện, địa điểm...')}</div>
-    <div class="events-filters">${state.user ? `<div class="event-scope-tabs" aria-label="Lọc sự kiện">${scopes.map(([value,label])=>`<button type="button" data-filter="${value}" class="${state.filter===value?'active':''}" aria-pressed="${state.filter===value}">${label}</button>`).join('')}</div><label class="event-visibility"><span class="sr-only">Loại sự kiện</span><select id="event-visibility" aria-label="Loại sự kiện">${[['all','Mọi loại sự kiện'],['public','Công khai'],['private','Riêng tư']].map(([value,label])=>`<option value="${value}" ${state.eventVisibility===value?'selected':''}>${label}</option>`).join('')}</select>${icons.arrow}</label>` : '<p class="public-events-note"><span aria-hidden="true"></span>Khám phá tự do. Đăng nhập khi bạn muốn tham gia.</p>'}</div>
-    <p class="event-results" role="status">${state.eventsLoading ? 'Đang tải các cuộc hẹn…' : state.eventsError ? 'Kết nối đang gián đoạn' : events.length ? `${events.length} cuộc hẹn ${state.eventPeriod==='past'?'đã qua':'đang chờ bạn'}` : 'Chưa có cuộc hẹn phù hợp'}</p>
+    <div class="events-navigation"><div class="event-periods" aria-label="Thời gian sự kiện">${[['upcoming','Sắp tới'],['past','Đã qua']].map(([value,label])=>`<button type="button" data-period="${value}" class="${state.eventPeriod===value?'active':''}" aria-pressed="${state.eventPeriod===value}">${label}<span>${periods[value].length}</span></button>`).join('')}</div><div class="events-tools">${searchBox('event-search','Tìm sự kiện, địa điểm...')}${eventFilterButton()}</div></div>
+    ${eventFilterSummary()}
+    <div class="event-results-bar"><p class="event-results" role="status">${state.eventsLoading ? 'Đang tải các cuộc hẹn…' : state.eventsError ? 'Kết nối đang gián đoạn' : events.length ? `${events.length} cuộc hẹn ${state.eventPeriod==='past'?'đã qua':'đang chờ bạn'}` : 'Chưa có cuộc hẹn phù hợp'}</p>${hasFilters?'<button class="event-reset" type="button" data-action="clear-event-filters">Xóa bộ lọc</button>':''}</div>
     ${state.eventsLoading ? '<div class="events-loading" role="status" aria-label="Đang tải sự kiện"><span></span><span></span><span></span><p>Đang tìm những cuộc hẹn dành cho bạn…</p></div>' : state.eventsError ? emptyState('Chưa thể tải danh sách sự kiện.',state.eventsError,'retry-events','Thử lại') : events.length ? eventTimeline(events) : emptyState(hasFilters ? 'Chưa tìm thấy cuộc hẹn phù hợp.' : state.eventPeriod==='past' ? 'Những kỷ niệm đang ở phía trước.' : 'Cuộc hẹn tiếp theo bắt đầu từ bạn.', hasFilters ? 'Thử một từ khóa khác hoặc bỏ bớt bộ lọc để khám phá thêm.' : state.eventPeriod==='past' ? 'Các sự kiện đã qua sẽ được lưu lại tại đây.' : 'Tạo sự kiện và rủ những người bạn yêu quý cùng tham gia.',hasFilters ? 'clear-event-filters' : state.eventPeriod==='past' ? 'upcoming-events' : 'create',hasFilters ? 'Xóa bộ lọc' : state.eventPeriod==='past' ? 'Khám phá sự kiện sắp tới' : 'Tạo cuộc hẹn đầu tiên')}
   </section>`;
 }
@@ -252,6 +320,8 @@ function closeModal() {
   const wasAuth = state.authOpen;
   state.authOpen = false;
   state.authIntent = null;
+  state.eventFilterDraft = null;
+  document.querySelector('.event-filter-trigger')?.setAttribute?.('aria-expanded','false');
   modalRoot.innerHTML = '';
   document.body.classList.remove('dialog-open');
   document.body.style.paddingRight = modalRoot.dataset.bodyPadding || '';
@@ -275,7 +345,7 @@ function modal(title, subtitle, html) {
   showDialog(`<div class="overlay" data-action="overlay-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description"><header class="modal-top"><div><p class="overline">EVENTLY / MỖI CUỘC HẸN LÀ MỘT KỶ NIỆM</p><h2 id="dialog-title">${esc(title)}</h2><p id="dialog-description">${esc(subtitle)}</p></div><button class="icon-btn plain" data-action="close-modal" aria-label="Đóng hộp thoại">${closeIcon}</button></header>${html}</section></div>`);
 }
 function createModal(e) {
-  modal(e?'Chỉnh sửa cuộc hẹn.':'Tạo một cuộc hẹn mới.',e?'Thay đổi một chút, để mọi người dễ dàng gặp nhau hơn.':'Một chút thông tin để bạn bè cùng lên lịch.',`<form id="event-form" data-id="${e?.id||''}"><div class="form-grid"><div class="field full"><label for="event-title">Tên cuộc hẹn</label><input id="event-title" name="title" placeholder="Ví dụ: Một chiều cà phê cùng nhau" maxlength="160" required value="${esc(e?.title||'')}"></div><div class="field"><label for="event-date">Thời gian</label><input id="event-date" name="startsAt" type="datetime-local" value="${e?localInputTime(e.startsAt):''}" required></div><div class="field"><label for="event-location">Địa điểm</label><input id="event-location" name="location" placeholder="Mình sẽ gặp nhau ở đâu?" value="${esc(e?.location||'')}" required></div><fieldset class="visibility-field full"><legend>Ai có thể tham gia?</legend><div class="visibility-options"><label><input type="radio" name="visibility" value="public" ${e?.visibility!=='private'?'checked':''}><span><b>Công khai</b><small>Mọi người có thể gửi yêu cầu tham gia.</small></span></label><label><input type="radio" name="visibility" value="private" ${e?.visibility==='private'?'checked':''}><span><b>Riêng tư</b><small>Chia sẻ cuộc hẹn với bạn bè được mời.</small></span></label></div></fieldset><div class="field full"><label for="event-description">Lời nhắn cho mọi người</label><textarea id="event-description" name="description" rows="4" placeholder="Kể thêm một chút về cuộc hẹn...">${esc(e?.description||'')}</textarea></div></div><p class="form-error" role="alert" hidden></p><div class="form-actions">${e?`<button class="quiet-link danger" type="button" data-action="delete-event" data-id="${e.id}">Xóa sự kiện</button>`:''}<span class="action-spacer"></span><button class="btn secondary" type="button" data-action="close-modal">Để sau</button><button class="btn">${e?'Lưu thay đổi':'Tạo cuộc hẹn'} ${arrowRight}</button></div></form>`);
+  modal(e?'Chỉnh sửa cuộc hẹn.':'Tạo một cuộc hẹn mới.',e?'Thay đổi một chút, để mọi người dễ dàng gặp nhau hơn.':'Một chút thông tin để bạn bè cùng lên lịch.',`<form id="event-form" data-id="${e?.id||''}"><div class="form-grid"><div class="field full"><label for="event-title">Tên cuộc hẹn</label><input id="event-title" name="title" placeholder="Ví dụ: Một chiều cà phê cùng nhau" maxlength="160" required value="${esc(e?.title||'')}"></div><div class="field"><label for="event-date">Thời gian</label><input id="event-date" name="startsAt" type="datetime-local" value="${e?localInputTime(e.startsAt):''}" required></div><div class="field"><label for="event-location">Địa điểm</label><input id="event-location" name="location" placeholder="Mình sẽ gặp nhau ở đâu?" value="${esc(e?.location||'')}" required></div><div class="field"><label for="event-category">Loại hoạt động</label><select id="event-category" name="category">${eventFilters.categories.map(([key,label])=>`<option value="${key}" ${eventFilters.category(e||{})===key?'selected':''}>${label}</option>`).join('')}</select></div><div class="field"><label for="event-area">Khu vực</label><input id="event-area" name="area" maxlength="80" placeholder="Ví dụ: Tây Hồ, Hà Nội" value="${esc(e?.area||'')}"></div><fieldset class="visibility-field full"><legend>Ai có thể tham gia?</legend><div class="visibility-options"><label><input type="radio" name="visibility" value="public" ${e?.visibility!=='private'?'checked':''}><span><b>Công khai</b><small>Mọi người có thể gửi yêu cầu tham gia.</small></span></label><label><input type="radio" name="visibility" value="private" ${e?.visibility==='private'?'checked':''}><span><b>Riêng tư</b><small>Chia sẻ cuộc hẹn với bạn bè được mời.</small></span></label></div></fieldset><div class="field full"><label for="event-description">Lời nhắn cho mọi người</label><textarea id="event-description" name="description" rows="4" placeholder="Kể thêm một chút về cuộc hẹn...">${esc(e?.description||'')}</textarea></div></div><p class="form-error" role="alert" hidden></p><div class="form-actions">${e?`<button class="quiet-link danger" type="button" data-action="delete-event" data-id="${e.id}">Xóa sự kiện</button>`:''}<span class="action-spacer"></span><button class="btn secondary" type="button" data-action="close-modal">Để sau</button><button class="btn">${e?'Lưu thay đổi':'Tạo cuộc hẹn'} ${arrowRight}</button></div></form>`);
 }
 function detailModal(e) {
   if (!e) return;
@@ -300,7 +370,7 @@ async function browseEvents(updateURL = true) {
   window.scrollTo({top:0,behavior:'instant'});
   if(state.user){render();return;}
   const request = ++publicLoadId;
-  state.eventsLoading = true;state.eventsError='';state.filter='all';state.eventVisibility='all';
+  state.eventsLoading = true;state.eventsError='';state.eventSelection.scopes=[];state.eventSelection.visibility=[];
   render();
   try { const events=await api('public-events');if(request===publicLoadId&&!state.user)state.events=events; }
   catch(error){if(request===publicLoadId&&!state.user)state.eventsError=error.message;}
@@ -313,7 +383,7 @@ function navigate(page, updateURL = true) {
 function requireAccount(intent) { state.authIntent=intent;authModal('login'); }
 function resetMemberState() {
   ++publicLoadId;
-  Object.assign(state,{token:'',user:null,authOpen:false,authIntent:null,events:[],friends:[],users:[],invitations:[],friendRequests:[],joinRequests:[],activity:[],filter:'all',query:'',eventVisibility:'all',eventsLoading:false,eventsError:''});
+  Object.assign(state,{token:'',user:null,authOpen:false,authIntent:null,events:[],friends:[],users:[],invitations:[],friendRequests:[],joinRequests:[],activity:[],query:'',eventSelection:eventFilters.emptySelection(),eventFilterDraft:null,eventFilterGroup:'categories',eventsLoading:false,eventsError:''});
   localStorage.removeItem('evently-token');
 }
 async function routeFromLocation() {
@@ -324,12 +394,11 @@ async function routeFromLocation() {
 window.addEventListener('popstate',routeFromLocation);
 window.addEventListener('hashchange',routeFromLocation);
 document.addEventListener('click', async event => {
-  const button=event.target.closest('[data-action],[data-page],[data-filter],[data-inbox],[data-period]');
+  const button=event.target.closest('[data-action],[data-page],[data-inbox],[data-period]');
   if (!button || button.disabled) return;
   if (button.dataset.page) { navigate(button.dataset.page); return; }
-  if (button.dataset.filter) { state.filter=button.dataset.filter;render();return; }
   if (button.dataset.inbox) { state.inboxTab=button.dataset.inbox;render();return; }
-  if (button.dataset.period) { state.eventPeriod=button.dataset.period;render();return; }
+  if (button.dataset.period) { state.eventPeriod=button.dataset.period;state.eventSelection.dates=[];render();document.querySelector(`[data-period="${state.eventPeriod}"]`)?.focus({preventScroll:true});return; }
   const action=button.dataset.action,id=button.dataset.id;
   try {
     if (action==='open-login'||action==='open-register') {state.authIntent=null;authModal(action==='open-login'?'login':'register');}
@@ -349,7 +418,22 @@ document.addEventListener('click', async event => {
     else if (action==='browse-events'||action==='retry-events') await browseEvents();
     else if (action==='landing-home') navigate('home');
     else if (action==='join'&&!state.user) requireAccount({action:'join',eventId:id});
-    else if (action==='clear-event-filters') { state.filter='all';state.query='';state.eventVisibility='all';render();document.querySelector('#event-search')?.focus(); }
+    else if (action==='open-event-filters') showEventFilters();
+    else if (action==='event-filter-group' && state.eventFilterDraft) {
+      if (!eventFilterGroups().some(group=>group.key===button.dataset.group)) return;
+      state.eventFilterGroup=button.dataset.group;updateEventFilterDialog(true,`#filter-tab-${state.eventFilterGroup}`);
+    }
+    else if (action==='reset-event-filter-draft' && state.eventFilterDraft) {
+      state.eventFilterDraft=eventFilters.emptySelection();updateEventFilterDialog(true,`#filter-tab-${state.eventFilterGroup}`);
+    }
+    else if (action==='apply-event-filters' && state.eventFilterDraft) {
+      state.eventSelection=eventFilters.copySelection(state.eventFilterDraft);closeModal();render();document.querySelector('.event-filter-trigger')?.focus({preventScroll:true});
+    }
+    else if (action==='remove-event-filter') {
+      const values=state.eventSelection[button.dataset.group];if(!values)return;
+      state.eventSelection[button.dataset.group]=values.filter(value=>value!==button.dataset.value);render();document.querySelector('.event-filter-trigger')?.focus({preventScroll:true});
+    }
+    else if (action==='clear-event-filters') { state.query='';state.eventSelection=eventFilters.emptySelection();render();document.querySelector('.event-filter-trigger')?.focus(); }
     else if (action==='upcoming-events') { state.eventPeriod='upcoming';render(); }
     else if (action==='create') {if(state.user)createModal();else requireAccount({action:'create'});}
     else if (action==='detail') detailModal(state.events.find(e=>e.id===id));
@@ -408,8 +492,12 @@ app.addEventListener('input', event => {
   const {id,value,selectionStart}=event.target;state.query=value;render();
   const input=document.getElementById(id);input.focus();if(Number.isInteger(selectionStart)){try{input.setSelectionRange(selectionStart,selectionStart);}catch{}}
 });
-app.addEventListener('change', event => {
-  if(event.target.id==='event-visibility'){state.eventVisibility=event.target.value;render();document.querySelector('#event-visibility')?.focus();}
+document.addEventListener('change', event => {
+  const input=event.target,group=eventFilterGroups().find(item=>item.key===input.dataset?.eventFilter);
+  if(!state.eventFilterDraft || !group || !group.options.some(([key])=>key===input.value))return;
+  const values=state.eventFilterDraft[group.key].filter(value=>value!==input.value);
+  state.eventFilterDraft[group.key]=input.checked?[...values,input.value]:values;
+  updateEventFilterDialog();
 });
 document.addEventListener('focusin', event => {
   const dialog=event.target.closest?.('.auth-dialog');
@@ -418,10 +506,15 @@ document.addEventListener('focusin', event => {
 document.addEventListener('keydown', event => {
   const dialog=modalRoot.querySelector('[role="dialog"]');if(!dialog)return;
   if(event.key==='Escape'){event.preventDefault();closeModal();return;}
+  if(state.eventFilterDraft && event.target.closest?.('[role="tablist"]') && ['ArrowUp','ArrowDown','Home','End'].includes(event.key)) {
+    event.preventDefault();const groups=eventFilterGroups(),current=groups.findIndex(group=>group.key===state.eventFilterGroup);
+    const index=event.key==='Home'?0:event.key==='End'?groups.length-1:(current+(event.key==='ArrowDown'?1:-1)+groups.length)%groups.length;
+    state.eventFilterGroup=groups[index].key;updateEventFilterDialog(true,`#filter-tab-${state.eventFilterGroup}`);return;
+  }
   if(event.key==='Tab'){
-    const focusable=[...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select,textarea,a[href]')].filter(el=>el.getClientRects().length);
+    const focusable=[...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select,textarea,a[href]')].filter(el=>el.tabIndex!==-1&&el.getClientRects().length);
     if(!focusable.length)return;const first=focusable[0],last=focusable.at(-1);
-    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+    if(event.shiftKey&&(document.activeElement===first||!focusable.includes(document.activeElement))){event.preventDefault();last.focus();}
     else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
   }
 });

@@ -35,7 +35,7 @@ test('public discovery keeps participation and private data behind authenticatio
     assert.equal(response.status,200);
     assert.equal(response.ok,true);
     assert.equal(response.data.length,1);
-    assert.deepEqual(Object.keys(response.data[0]).sort(),['id','title','description','location','startsAt','visibility','ownerName','attendeeCount'].sort());
+    assert.deepEqual(Object.keys(response.data[0]).sort(),['id','title','description','location','startsAt','visibility','category','area','ownerName','attendeeCount'].sort());
     assert.equal(response.data[0].id,'public-event');
     assert.equal(response.data[0].ownerName,'Host');
     assert.equal(response.data[0].attendeeCount,1);
@@ -70,5 +70,16 @@ test('public discovery keeps participation and private data behind authenticatio
     assert.equal(publicView.data[0].attendeeCount,2);
     assert.equal(publicView.data[0].attendees,undefined);
     assert.equal(publicView.data[0].owner,undefined);
+  });
+  await t.test('event filters use saved metadata and preserve it when other fields change', async()=>{
+    const payload={title:'Filter test',description:'A sample',location:'Hà Nội',startsAt:new Date(Date.now()+86400000).toISOString(),visibility:'public',category:'music',area:'Ba Đình'};
+    const created=await call('event-create',payload,visitor.data.token);assert.equal(created.status,200);
+    let listed=(await call('public-events')).data.find(e=>e.id===created.data.id);
+    assert.equal(listed.category,'music');assert.equal(listed.area,'Ba Đình');
+    await call('event-update',{id:created.data.id,...payload,category:'books',area:'Cầu Giấy'},visitor.data.token);
+    const {category,area,...ordinary}=payload;
+    await call('event-update',{id:created.data.id,...ordinary,title:'Renamed event'},visitor.data.token);
+    listed=(await call('public-events')).data.find(e=>e.id===created.data.id);
+    assert.equal(listed.category,'books');assert.equal(listed.area,'Cầu Giấy');
   });
 });

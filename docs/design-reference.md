@@ -24,7 +24,7 @@ The existing page remains mounted behind a blurred scrim. Opening the dialog mak
 
 The event list defaults to a **vertical timeline grouped by local calendar day** for both guests and members. The initial period is **Upcoming / Sắp tới**. It does not open in a card grid or require the user to choose the timeline first. The nearest upcoming event appears first; past events appear newest first.
 
-Each compact event row separates time, title, host, location, participation state, attendance count and cover artwork. Upcoming/past tabs, accent-insensitive search, member participation/host/invitation filters and public/private selection operate on real API data. Loading, error, empty and filtered-empty states are explicit. No demonstration events are persisted.
+Each compact event row separates time, title, host, location, participation state, attendance count and cover artwork. Upcoming/past tabs, accent-insensitive search, member participation/host/invitation filters and public/private selection operate on real API data. Loading, error, empty and filtered-empty states are explicit. Sample events can be explicitly added with `npm run seed:demo`; they are labelled as samples and remain in ignored local data.
 
 Layout research: https://luma.com/discover and https://luma.com/ho-chi-minh-city. Evently uses its own branding, component code and cover artwork. No Luma event data, images or component source were copied.
 
@@ -47,3 +47,11 @@ The cow has a 24-second cycle of walking, grazing/chewing, looking up, turning a
 Animals are software-rendered cuboid geometry in the video's native 1920×690 coordinates. The canvas and video share responsive fit/crop rules. One local grass patch tracks plate motion; fixed sunset lighting does not reverse when animals turn. Soft ground shadows, green reflected light, matched focus and live grass-derived masks integrate the silhouettes. This is a composite over supplied footage, not a complete depth map or a reconstructed 3D meadow.
 
 All animals share one canvas and video-frame callback and render back to front. Hidden tabs, offscreen backgrounds, authentication dialogs, data-saving and reduced-motion preferences freeze both footage and animals. The poster supplies a static composition. Existing clocks resume after the dialog closes. Two small violet SVG butterflies remain decorative in the landscape.
+
+## Discovery filters
+
+A single outlined filter button beside search opens an ivory/olive drawer. Category navigation sits on the left; labelled native checkboxes on the right allow multiple selections. OR combines values within a group and AND combines groups with accent-insensitive search. Membership and visibility groups are available to members. Selection badges, removable summary chips and clear-all make applied conditions visible without spreading controls across the event list.
+
+Changes are drafted until Apply; closing, pressing Escape or clicking the scrim cancels the draft. The footer previews matching results while selected counts update in each group. Empty groups mean unrestricted. Vertical tabs support arrow keys, Home and End; the dialog traps focus, restores it to the trigger and keeps options independently scrollable. Mobile keeps the left category column, full-height content and an accessible footer with safe-area spacing; reduced-motion disables the entrance transition.
+
+Date windows follow local calendar boundaries: today, tomorrow, the current weekend and the next seven days. Past discovery offers the last seven/thirty calendar days. Switching upcoming/past clears date selections to avoid contradictory filters. The default grouped vertical timeline remains unchanged. Activity and area metadata persist through create/edit and are explicit public display fields. Existing sample events receive missing metadata without duplicated events or overwritten edits. Unknown legacy categories render as Other.
