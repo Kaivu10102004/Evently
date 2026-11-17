@@ -1,10 +1,11 @@
 const icons={spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg>',calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>',users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 8v6m3-3h-6"/></svg>',bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>',plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg>',pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m9 18 6-6-6-6"/></svg>',check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m5 12 4 4L19 6"/></svg>',search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>'};
 
 const eventFilters = window.EventlyFilters;
+const memberPages=['events','profile','friends','inbox','activity'];
 const state = {
-  token: localStorage.getItem('evently-token') || '', user: null, page: location.hash === '#events' ? 'events' : 'home',
+  token: localStorage.getItem('evently-token') || '', user: null, page: memberPages.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home',
   events: [], friends: [], users: [], invitations: [], friendRequests: [], joinRequests: [], activity: [],
-  query: '', eventPeriod: 'upcoming', eventSelection: eventFilters.emptySelection(), eventFilterDraft: null, eventFilterGroup: 'categories', inboxTab: 'all', authMode: 'login', authOpen: false, authIntent: null, eventsLoading: false, eventsError: ''
+  activityPage:1,activityFilter:'all',friendTab:'friends',friendPage:1,friendSort:'name', query: '', eventPeriod: 'upcoming', eventSelection: eventFilters.emptySelection(), eventFilterDraft: null, eventFilterGroup: 'categories', inboxTab: 'all', authMode: 'login', authOpen: false, authIntent: null, eventsLoading: false, eventsError: ''
 };
 const app = document.querySelector('#app');
 const modalRoot = document.querySelector('#modal-root');
@@ -13,9 +14,15 @@ const arrowRight = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const closeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>';
 const logoutIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10 4H5v16h5m4-12 4 4-4 4m-6-4h10"/></svg>';
 async function api(action, payload = {}) {
+  const requestToken=state.token;
   const response = await fetch('/api', { method: 'POST', headers: {'content-type':'application/json', ...(state.token ? {authorization:`Bearer ${state.token}`} : {})}, body:JSON.stringify({action,payload}) });
   const result = await response.json();
-  if (!result.ok) throw Error(result.error || 'Có lỗi xảy ra. Vui lòng thử lại.');
+  if (!result.ok) {
+    if(response.status===401 && requestToken && requestToken===state.token && !['login','register','me'].includes(action)) {
+      closeModal();resetMemberState();state.page='events';routeURL('events');render();authModal('login');
+    }
+    const error=Error(result.error || 'Có lỗi xảy ra. Vui lòng thử lại.');error.status=response.status;throw error;
+  }
   return result.data;
 }
 function esc(value = '') { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -47,16 +54,14 @@ function landing() {
       <nav aria-label="Điều hướng chính">
         <a class="current" href="#hero-heading" aria-current="page">Khám phá</a>
         <button data-action="browse-events">Sự kiện</button>
-        <button data-action="open-login">Bạn bè</button>
-        <button data-action="open-register">Đăng ký</button>
       </nav>
       <button class="black-pill nav-cta" data-action="open-login">Đăng nhập</button>
     </header>
     <section class="landing-hero" aria-labelledby="hero-heading">
       <div class="hero-copy">
-        <h1 id="hero-heading">Hẹn nhau, <span>tạo nên</span> kỷ niệm.</h1>
-        <p class="hero-description">Nơi bạn tạo sự kiện, kết nối những người thân quen<br>và cùng nhau lưu giữ những khoảnh khắc đáng nhớ.</p>
-        <button class="black-pill hero-cta" data-action="open-login">ĐĂNG NHẬP ${arrow}</button>
+        <h1 id="hero-heading">Hẹn nhau nhé.</h1>
+        <p class="hero-description">Sự kiện nhỏ. Kỷ niệm dài.</p>
+        <button class="black-pill hero-cta" data-action="open-login">Đăng nhập ${arrow}</button>
       </div>
       <div class="meadow-wrap">${meadowArt()}</div>
     </section>
@@ -121,10 +126,11 @@ function authModal(mode = 'login', values = {}) {
         ${authField('email', 'Email', 'email', register ? 'email' : 'username')}
         ${authField('password', 'Mật khẩu', 'password', register ? 'new-password' : 'current-password', register ? 'minlength="8" aria-describedby="password-hint"' : '')}
         ${register ? '<small id="password-hint" class="password-hint">Mật khẩu gồm ít nhất 8 ký tự.</small>' : ''}
+        ${!register ? '<div class="auth-divider"><span>hoặc đăng nhập với</span></div><button class="google-signin" type="button" data-action="google-login"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.4-4.55H24v9.02h12.9c-.58 2.96-2.25 5.47-4.73 7.16l7.64 5.92c4.46-4.12 7.17-10.2 7.17-17.55Z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.2A23.9 23.9 0 0 0 0 24c0 3.87.93 7.53 2.56 10.78l7.97-6.19Z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.9l-7.64-5.92c-2.13 1.43-4.86 2.27-8.26 2.27-6.26 0-11.57-4.22-13.47-9.91l-7.97 6.2C6.51 42.62 14.62 48 24 48Z"/></svg><span>Tiếp tục với Google</span></button>' : ''}
         <p class="form-error" role="alert" tabindex="-1" hidden></p>
         <div class="auth-submit-wrap"><button class="btn auth-submit" type="submit"><span>${register ? 'Tạo tài khoản' : 'Đăng nhập'}</span>${arrowRight}</button></div>
       </form>
-      <p class="auth-switch"><button type="button" data-action="toggle-auth">${register ? 'Quay lại đăng nhập' : 'Đăng ký tài khoản'}</button></p>
+      <p class="auth-switch"><span>${register ? 'Đã có tài khoản?' : 'Chưa có tài khoản?'}</span><button type="button" data-action="toggle-auth">${register ? 'Đăng nhập' : 'Đăng ký tài khoản'}</button></p>
     </section>
   </div>`, '#dialog-title');
   window.EventlyMeadow?.stop();
@@ -132,17 +138,21 @@ function authModal(mode = 'login', values = {}) {
 function navButton(page, label, icon, count = 0, mobile = false) {
   return `<button class="app-nav-link ${state.page===page?'active':''}" data-page="${page}" ${state.page===page?'aria-current="page"':''}>${mobile ? icons[icon] : ''}<span>${label}</span>${count ? `<span class="nav-count">${count}</span>` : ''}</button>`;
 }
+function interfaceAccents() {
+  return '<div class="interface-accents" aria-hidden="true"><span class="interface-butterfly butterfly-near"><img src="/assets/voxel-butterfly.svg" alt="" width="24" height="20"></span><span class="interface-butterfly butterfly-far"><img src="/assets/voxel-butterfly.svg" alt="" width="18" height="15"></span></div>';
+}
 function shell(content) {
   const pending = state.invitations.length + state.friendRequests.length + state.joinRequests.length;
   const nav = mobile => `${navButton('home','Tổng quan','spark',0,mobile)}${navButton('events','Sự kiện','calendar',0,mobile)}${navButton('friends','Bạn bè','users',0,mobile)}${navButton('inbox','Lời mời','bell',pending,mobile)}`;
   app.innerHTML = `<div class="workspace"><header class="app-header"><button class="wordmark-button" data-page="home" aria-label="Evently · Tổng quan">${brand()}</button><nav class="app-nav" aria-label="Điều hướng chính">${nav(false)}</nav><button class="profile-button" data-action="account" aria-label="Tài khoản của ${esc(state.user.name)}">${avatar(state.user)}<span>${esc(state.user.name.split(' ').slice(-2).join(' '))}</span></button></header>
-    <main class="workspace-main ${state.page==='events'?'events-main':''}">${content}</main><footer class="app-footer"><span class="footer-wordmark">evently</span><span>Cho những lần gặp gỡ thật.</span><button class="quiet-link" data-action="account">Không gian của ${esc(state.user.name.split(' ').slice(-1)[0])} ${arrowRight}</button></footer><nav class="mobile-app-nav" aria-label="Điều hướng trên điện thoại">${nav(true)}</nav></div>`;
+    <main class="workspace-main ${state.page==='events'?'events-main':''}">${interfaceAccents()}${content}</main><footer class="app-footer"><span class="footer-wordmark">evently</span><span></span><button class="quiet-link" data-action="account">Tài khoản ${arrowRight}</button></footer><nav class="mobile-app-nav" aria-label="Điều hướng trên điện thoại">${nav(true)}</nav></div>`;
 }
 function publicShell(content) {
-  app.innerHTML = `<div class="workspace public-workspace"><header class="landing-nav public-nav"><button class="wordmark-button" data-action="landing-home" aria-label="Evently · Trang chủ">${brand()}</button><nav aria-label="Điều hướng chính"><button data-action="landing-home">Trang chủ</button><button class="current" data-action="browse-events" aria-current="page">Sự kiện</button><button data-action="open-register">Đăng ký</button></nav><button class="black-pill nav-cta" data-action="open-login">Đăng nhập</button></header><main class="workspace-main events-main">${content}</main><footer class="app-footer"><span class="footer-wordmark">evently</span><span>Cho những lần gặp gỡ thật.</span></footer></div>`;
+  app.innerHTML = `<div class="workspace public-workspace"><header class="landing-nav public-nav"><button class="wordmark-button" data-action="landing-home" aria-label="Evently · Trang chủ">${brand()}</button><nav aria-label="Điều hướng chính"><button data-action="landing-home">Trang chủ</button><button class="current" data-action="browse-events" aria-current="page">Sự kiện</button></nav><button class="black-pill nav-cta" data-action="open-login">Đăng nhập</button></header><main class="workspace-main events-main">${interfaceAccents()}${content}</main><footer class="app-footer"><span class="footer-wordmark">evently</span></footer></div>`;
 }
 function pageIntro(kicker, title, copy, action = true) {
-  return `<header class="page-intro"><div><p class="overline">${kicker}</p><h1>${title}</h1><p class="page-description">${copy}</p></div>${action ? `<button class="btn" data-action="create">Tạo sự kiện ${icons.plus}</button>` : ''}</header>`;
+  if (kicker === 'KẾT NỐI / HỘP THƯ') { kicker='HỘP THƯ'; title='Lời mời'; copy=''; }
+  return `<header class="page-intro"><div><p class="overline">${kicker}</p><h1>${title}</h1>${copy?`<p class="page-description">${copy}</p>`:''}</div>${action ? `<button class="btn" data-action="create">Tạo mới ${icons.plus}</button>` : ''}</header>`;
 }
 function upcoming() { return state.events.filter(e => new Date(e.startsAt) >= new Date()).sort((a,b)=>new Date(a.startsAt)-new Date(b.startsAt)); }
 function eventStatus(e) { if(!state.user) return ''; return e.owner===state.user.id ? 'Bạn tổ chức' : e.joined ? 'Đã tham gia' : e.request==='pending' ? 'Chờ duyệt' : e.invitation==='pending' ? 'Bạn được mời' : ''; }
@@ -155,19 +165,24 @@ function featuredEvent(e) {
   const d = dateParts(e.startsAt);
   return `<section class="featured-event"><button class="feature-image" data-action="detail" data-id="${e.id}" aria-label="Xem ${esc(e.title)}"><img src="/assets/meadow-poster.jpg" alt=""><span class="feature-date"><b>${d.day}</b><span>${d.month}</span></span></button><div class="feature-copy"><p class="overline">${e.joined || e.owner===state.user.id ? 'CUỘC HẸN GẦN NHẤT' : 'KHÁM PHÁ MỘT CUỘC HẸN'}</p><h2>${esc(e.title)}</h2><p class="feature-summary">${esc(e.description || 'Một dịp để gặp gỡ và dành thời gian cho nhau.')}</p><div class="feature-meta"><span>${icons.clock}${esc(d.weekday)}, ${esc(d.time)}</span><span>${icons.pin}${esc(e.location)}</span></div><div class="feature-bottom"><span class="status-label">${eventStatus(e) || (e.visibility==='public'?'Công khai':'Riêng tư')}</span><button class="quiet-link" data-action="detail" data-id="${e.id}">Xem cuộc hẹn ${arrowRight}</button></div></div></section>`;
 }
-function activityList() {
+function activityList(items = state.activity.slice(0,4)) {
   const labels = {'account.register':'Tạo tài khoản Evently','auth.login':'Đăng nhập vào không gian của bạn','auth.logout':'Đăng xuất','event.create':'Tạo một cuộc hẹn mới','event.update':'Cập nhật thông tin sự kiện','event.delete':'Xóa một sự kiện','friend.request':'Gửi lời mời kết bạn','friend.accept':'Chấp nhận lời mời kết bạn','friend.reject':'Từ chối lời mời kết bạn','friend.remove':'Cập nhật danh sách bạn bè','event.invite':'Mời bạn bè tham gia sự kiện','event.invitation.respond':'Phản hồi lời mời tham gia','event.join.request':'Gửi yêu cầu tham gia','event.join.respond':'Phản hồi yêu cầu tham gia'};
-  return state.activity.slice(0,4).map(a=>`<li><span class="activity-dot" aria-hidden="true"></span><div><p>${labels[a.action] || 'Cập nhật hoạt động'}</p><time datetime="${esc(a.at)}">${dateParts(a.at).short} · ${dateParts(a.at).time}</time></div></li>`).join('') || '<li class="muted-copy">Những hoạt động mới sẽ xuất hiện ở đây.</li>';
+  return items.map(a=>`<li><span class="activity-dot" aria-hidden="true"></span><div><p>${labels[a.action] || 'Cập nhật hoạt động'}</p><time datetime="${esc(a.at)}">${dateParts(a.at).short} · ${dateParts(a.at).time}</time></div></li>`).join('') || '<li class="muted-copy">Những hoạt động mới sẽ xuất hiện ở đây.</li>';
 }
+function activityPage() {
+  const items=state.activity.filter(a=>state.activityFilter==='all'||a.action.startsWith(state.activityFilter));
+  const pages=Math.max(1,Math.ceil(items.length/20));state.activityPage=Math.min(pages,Math.max(1,state.activityPage));
+  return `${pageIntro('NHẬT KÝ','Hoạt động','',false)}<div class="activity-history-controls"><label>Loại hoạt động <select id="activity-filter">${[['all','Tất cả'],['event.','Sự kiện'],['friend.','Bạn bè'],['auth.','Đăng nhập'],['account.','Tài khoản']].map(([value,label])=>`<option value="${value}" ${value===state.activityFilter?'selected':''}>${label}</option>`).join('')}</select></label><span role="status">${items.length} hoạt động</span></div><ol class="activity-history">${activityList(items.slice((state.activityPage-1)*20,state.activityPage*20))}</ol>${pages>1?`<nav class="connections-pagination" aria-label="Trang hoạt động"><button class="btn secondary small" data-action="activity-page" data-index="${state.activityPage-1}" ${state.activityPage===1?'disabled':''}>Trước</button><span>${state.activityPage} / ${pages}</span><button class="btn secondary small" data-action="activity-page" data-index="${state.activityPage+1}" ${state.activityPage===pages?'disabled':''}>Sau</button></nav>`:''}`;
+}
+
 function home() {
-  const own = upcoming().filter(e=>e.joined || e.owner===state.user.id), featured=own[0] || upcoming()[0];
+  const own = upcoming().filter(e=>e.joined || e.owner===state.user.id), displayEvents=own.length?own:upcoming();
   const pending = state.invitations.length + state.friendRequests.length + state.joinRequests.length;
-  return `${pageIntro('KHÔNG GIAN CỦA BẠN',`Chào ${esc(state.user.name.split(' ').slice(-1)[0])}, <span>hẹn nhau nhé.</span>`, 'Dành một chút thời gian cho những điều và những người bạn mong đợi.')}
-    <div class="overview-metrics"><div><span class="metric-value">${String(own.length).padStart(2,'0')}</span><span>Cuộc hẹn sắp tới</span></div><div><span class="metric-value">${String(state.friends.length).padStart(2,'0')}</span><span>Người bạn kết nối</span></div><div><span class="metric-value">${String(pending).padStart(2,'0')}</span><span>Lời mời & yêu cầu</span></div><div><span class="metric-value">${String(state.events.filter(e=>e.owner===state.user.id).length).padStart(2,'0')}</span><span>Sự kiện bạn tổ chức</span></div></div>
-    ${featuredEvent(featured)}
-    <div class="home-columns"><section class="editorial-section"><div class="section-heading"><div><p class="overline">TRÊN LỊCH CỦA BẠN</p><h2>Những lần gặp sắp tới.</h2></div><button class="quiet-link" data-page="events">Tất cả sự kiện ${arrowRight}</button></div>${own.length ? own.slice(0,3).map(eventRow).join('') : emptyState('Lịch hẹn vẫn còn trống.','Tạo một sự kiện và rủ bạn bè cùng tham gia.','create','Tạo cuộc hẹn')}</section>
-    <aside class="invitation-note"><p class="overline">MỘT LỜI MỜI, MỘT KẾT NỐI</p><h2>${pending ? `${pending} lời hẹn<br>đang chờ bạn.` : 'Có nhau,<br>ngày nào cũng vui.'}</h2><p>${pending ? 'Phản hồi những lời mời và yêu cầu tham gia mới nhất của bạn.' : 'Kết nối với bạn bè và tạo thêm những dịp để gặp nhau.'}</p><button class="quiet-link" data-page="${pending?'inbox':'friends'}">${pending?'Mở hộp thư':'Kết nối bạn bè'} ${arrowRight}</button></aside></div>
-    <section class="activity-section"><div><p class="overline">NHẬT KÝ NHỎ</p><h2>Gần đây.</h2><p class="muted-copy">Những thay đổi trong không gian của bạn.</p></div><ol class="activity-list">${activityList()}</ol></section>`;
+  return `${pageIntro('TỔNG QUAN',`Chào ${esc(state.user.name.split(' ').slice(-1)[0])}.`, '')}
+    <div class="overview-metrics"><div><span class="metric-value">${own.length}</span><span>Sắp tới</span></div><div><span class="metric-value">${state.friends.length}</span><span>Bạn bè</span></div><div><span class="metric-value">${pending}</span><span>Đang chờ</span></div><div><span class="metric-value">${state.events.filter(e=>e.owner===state.user.id).length}</span><span>Đã tạo</span></div></div>
+    <section class="home-upcoming-section"><div class="section-heading"><h2>Sắp tới</h2><button class="quiet-link" data-page="events">Tất cả ${arrowRight}</button></div>${displayEvents.length?`<div class="home-event-grid">${displayEvents.slice(0,3).map(eventListCard).join('')}</div>`:emptyState('Chưa có sự kiện','Tạo mới để bắt đầu.','create','Tạo mới')}</section>
+    <div class="home-columns"><aside class="invitation-note"><p class="overline">HỘP THƯ</p><h2>${pending ? `${pending} đang chờ` : 'Không có lời mời'}</h2><button class="quiet-link" data-page="${pending?'inbox':'friends'}">${pending?'Xem lời mời':'Tìm bạn'} ${arrowRight}</button></aside>
+    <section class="activity-section"><div><p class="overline">HOẠT ĐỘNG</p><h2>Gần đây</h2><button class="quiet-link" data-page="activity">Xem nhật ký ${arrowRight}</button></div><ol class="activity-list">${activityList()}</ol></section></div>`;
 }
 function eventPoster(e) {
   const theme = [...e.title].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 4;
@@ -190,28 +205,30 @@ function eventFilterResults(selection) {
   const now = Date.now();
   return state.events.filter(e => eventMatches(e, selection) && (state.eventPeriod === 'past' ? new Date(e.startsAt) < now : new Date(e.startsAt) >= now));
 }
+function eventCover(e) {
+  return typeof e.cover==='string' && /^\/assets\/events\/[a-z0-9-]+\.svg$/.test(e.cover) ? `<img class="event-cover" src="${esc(e.cover)}" alt="" loading="lazy" width="600" height="480">` : '';
+}
 function eventListCard(e) {
   const d = dateParts(e.startsAt), status = eventStatus(e), past = new Date(e.startsAt).getTime() < Date.now();
-  const owner = isOwner(e) ? state.user : state.users.find(u => u.id === e.owner) || {name:e.ownerName || 'Thành viên Evently'};
   return `<article class="event-list-card">
-    <div class="event-list-copy"><div class="event-card-top"><time datetime="${esc(e.startsAt)}">${esc(d.time)}</time><span class="event-privacy ${e.visibility==='private'?'is-private':''}">${e.visibility==='private' ? 'Riêng tư' : 'Công khai'}</span><span class="event-type-label">${eventFilters.categoryLabel(e)}</span></div>
+    <button type="button" class="event-poster-button event-theme-${eventFilters.category(e)}" data-action="detail" data-id="${e.id}" aria-label="Xem ${esc(e.title)}">${eventCover(e)||`<span class="event-card-icon">${icons.calendar}</span>`}</button>
+    <div class="event-list-copy"><p class="event-card-top"><span>${esc(d.short)} · ${esc(d.time)}</span><span class="event-type-label">${eventFilters.categoryLabel(e)}</span></p>
       <h3><button type="button" data-action="detail" data-id="${e.id}">${esc(e.title)}</button></h3>
-      <p class="event-organizer">${avatar(owner)}<span>Bởi ${esc(owner.name)}</span></p>
       <p class="event-location">${icons.pin}<span>${esc(e.location)}</span></p>
-      <div class="event-card-bottom"><span class="event-rsvp ${past ? 'is-past' : status ? 'has-status' : ''}">${past ? 'Đã kết thúc' : status ? `${e.joined || isOwner(e) ? icons.check : ''}${status}` : e.visibility==='private' ? 'Qua lời mời' : 'Nhận yêu cầu tham gia'}</span><span class="event-attendees">${attendeeCount(e)} người tham gia</span></div>
+      <div class="event-card-bottom"><span class="event-rsvp ${past ? 'is-past' : status ? 'has-status' : ''}">${past ? 'Đã qua' : status || (e.visibility==='private' ? 'Riêng tư' : 'Công khai')}</span><span class="event-attendees">${attendeeCount(e)}</span></div>
     </div>
-    <button type="button" class="event-poster-button" data-action="detail" data-id="${e.id}" aria-label="Xem chi tiết ${esc(e.title)}">${eventPoster(e)}</button>
   </article>`;
 }
 function eventTimeline(events) {
   const groups = new Map();
-  for (const e of events) { const key = dateKey(e.startsAt); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(e); }
-  const today = dateKey(new Date()), tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate()+1);
-  const tomorrow = dateKey(tomorrowDate);
-  return `<div class="event-timeline">${[...groups].map(([key, items]) => {
-    const d = new Date(items[0].startsAt), short = d.toLocaleDateString('vi-VN',{day:'numeric',month:'long'});
-    const relative = key === today ? 'Hôm nay' : key === tomorrow ? 'Ngày mai' : d.toLocaleDateString('vi-VN',{weekday:'long'});
-    return `<section class="event-day-group" aria-labelledby="day-${key}"><h2 id="day-${key}" class="event-day-heading"><time datetime="${key}"><strong>${esc(short)}</strong><span>${esc(relative)}</span>${d.getFullYear() !== new Date().getFullYear() ? `<small>${d.getFullYear()}</small>` : ''}</time></h2><div class="event-day-cards">${items.map(eventListCard).join('')}</div></section>`;
+  for (const event of events) {
+    const key = dateKey(event.startsAt);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(event);
+  }
+  return `<div class="event-timeline">${[...groups].map(([key,items])=>{
+    const date=new Date(items[0].startsAt);
+    return `<section class="event-day-group"><h2 class="event-day-heading"><time datetime="${key}"><strong>${esc(date.toLocaleDateString('vi-VN',{day:'numeric',month:'long'}))}</strong><span>${esc(date.toLocaleDateString('vi-VN',{weekday:'long'}))}</span></time></h2><div class="event-day-cards">${items.map(eventListCard).join('')}</div></section>`;
   }).join('')}</div>`;
 }
 function searchBox(id, placeholder) { return `<label class="editorial-search">${icons.search}<span class="sr-only">${placeholder}</span><input id="${id}" type="search" placeholder="${placeholder}" value="${esc(state.query)}" autocomplete="off"></label>`; }
@@ -282,34 +299,46 @@ function eventsPage() {
   const periods = {upcoming:matched.filter(e => new Date(e.startsAt).getTime() >= now),past:matched.filter(e => new Date(e.startsAt).getTime() < now)};
   const events = periods[state.eventPeriod].slice().sort((a,b) => (new Date(a.startsAt)-new Date(b.startsAt)) * (state.eventPeriod==='past' ? -1 : 1));
   const hasFilters = state.query.trim() || eventFilters.selectionCount(state.eventSelection);
-  return `<section class="events-page"><header class="events-heading"><div class="events-title-block"><p class="overline">DÀNH THỜI GIAN CHO NHỮNG ĐIỀU BẠN THÍCH</p><div class="events-title-line"><h1>Sự kiện<span>.</span></h1><span class="events-bouquet" aria-hidden="true">${meadowSprig()}</span></div><p>Tìm một cuộc hẹn. Mang về những kỷ niệm.</p></div><button class="btn" data-action="create">${icons.plus} Tạo sự kiện</button></header>
+  return `<section class="events-page"><header class="events-heading"><div class="events-title-block"><p class="overline">EVENTLY</p><div class="events-title-line"><h1>Sự kiện</h1></div></div><button class="btn" data-action="create">${icons.plus} Tạo mới</button></header>
     <div class="events-navigation"><div class="event-periods" aria-label="Thời gian sự kiện">${[['upcoming','Sắp tới'],['past','Đã qua']].map(([value,label])=>`<button type="button" data-period="${value}" class="${state.eventPeriod===value?'active':''}" aria-pressed="${state.eventPeriod===value}">${label}<span>${periods[value].length}</span></button>`).join('')}</div><div class="events-tools">${searchBox('event-search','Tìm sự kiện, địa điểm...')}${eventFilterButton()}</div></div>
+    ${!state.user ? '<aside class="events-login-note"><span>Đăng nhập để gửi yêu cầu tham gia và theo dõi lời mời.</span><button type="button" data-action="open-login">Đăng nhập</button></aside>' : ''}
+    ${state.user?`<div class="event-shortcuts" aria-label="Lọc theo vai trò">${[['all','Tất cả'],['mine','Bạn tổ chức'],['joined','Đã tham gia'],['invited','Được mời']].map(([key,label])=>`<button type="button" data-action="event-scope" data-scope="${key}" aria-pressed="${key==='all'?!state.eventSelection.scopes.length:state.eventSelection.scopes.includes(key)}">${label}</button>`).join('')}</div>`:''}
     ${eventFilterSummary()}
     <div class="event-results-bar"><p class="event-results" role="status">${state.eventsLoading ? 'Đang tải các cuộc hẹn…' : state.eventsError ? 'Kết nối đang gián đoạn' : events.length ? `${events.length} cuộc hẹn ${state.eventPeriod==='past'?'đã qua':'đang chờ bạn'}` : 'Chưa có cuộc hẹn phù hợp'}</p>${hasFilters?'<button class="event-reset" type="button" data-action="clear-event-filters">Xóa bộ lọc</button>':''}</div>
     ${state.eventsLoading ? '<div class="events-loading" role="status" aria-label="Đang tải sự kiện"><span></span><span></span><span></span><p>Đang tìm những cuộc hẹn dành cho bạn…</p></div>' : state.eventsError ? emptyState('Chưa thể tải danh sách sự kiện.',state.eventsError,'retry-events','Thử lại') : events.length ? eventTimeline(events) : emptyState(hasFilters ? 'Chưa tìm thấy cuộc hẹn phù hợp.' : state.eventPeriod==='past' ? 'Những kỷ niệm đang ở phía trước.' : 'Cuộc hẹn tiếp theo bắt đầu từ bạn.', hasFilters ? 'Thử một từ khóa khác hoặc bỏ bớt bộ lọc để khám phá thêm.' : state.eventPeriod==='past' ? 'Các sự kiện đã qua sẽ được lưu lại tại đây.' : 'Tạo sự kiện và rủ những người bạn yêu quý cùng tham gia.',hasFilters ? 'clear-event-filters' : state.eventPeriod==='past' ? 'upcoming-events' : 'create',hasFilters ? 'Xóa bộ lọc' : state.eventPeriod==='past' ? 'Khám phá sự kiện sắp tới' : 'Tạo cuộc hẹn đầu tiên')}
   </section>`;
 }
 function friendCard(user, connected) {
-  const request=state.friendRequests.find(r=>r.from===user.id || r.user?.id===user.id);
-  const actions=connected ? `<span class="connected-label">${icons.check} Bạn bè</span><button class="icon-btn plain" data-action="unfriend" data-id="${user.id}" aria-label="Hủy kết bạn với ${esc(user.name)}">${closeIcon}</button>` : user.friendship==='sent' ? '<span class="status-label">Đang chờ phản hồi</span>' : request ? `<button class="btn small" data-action="friend-accept" data-id="${request.id}">Chấp nhận</button>` : `<button class="btn secondary small" data-action="friend-add" data-id="${user.id}">Kết bạn ${icons.plus}</button>`;
-  return `<article class="connection-card">${avatar(user,'large')}<div class="connection-copy"><h3>${esc(user.name)}</h3><p>${esc(user.email)}</p></div><div class="connection-actions">${actions}</div></article>`;
+  const request=state.friendRequests.find(r=>r.from===user.id);
+  const actions=connected ? `<button class="quiet-link connection-remove" data-action="unfriend" data-id="${user.id}" aria-label="Hủy kết bạn với ${esc(user.name)}">Hủy kết bạn</button>` : user.friendship==='sent' ? '<span class="status-label">Đã gửi lời mời</span>' : request ? `<button class="btn secondary small" data-action="friend-reject" data-id="${request.id}">Từ chối</button><button class="btn small" data-action="friend-accept" data-id="${request.id}">Chấp nhận</button>` : `<button class="btn secondary small" data-action="friend-add" data-id="${user.id}">${icons.plus} Kết bạn</button>`;
+  return `<li class="connection-row">${avatar(user)}<div class="connection-copy"><h3>${esc(user.name)}</h3><p>${esc(user.email)}</p></div><div class="connection-actions">${actions}</div></li>`;
 }
 function friendsPage() {
-  const query=state.query.toLowerCase(), match=u=>(u.name+' '+u.email).toLowerCase().includes(query);
-  const friends=state.friends.filter(match), discover=state.users.filter(u=>u.friendship!=='friends'&&match(u));
-  return `${pageIntro('KẾT NỐI / BẠN BÈ','Những người <span>bạn thương.</span>','Một lời kết bạn, thêm một người để chia sẻ những ngày vui.',false)}<div class="connections-toolbar"><p>${state.friends.length} người bạn trong không gian của bạn</p>${searchBox('friend-search','Tìm tên hoặc email')}</div><section class="editorial-section"><div class="section-heading"><h2>Bạn bè của bạn <small>${state.friends.length}</small></h2><button class="quiet-link" data-page="inbox">Lời mời kết bạn ${arrowRight}</button></div>${friends.length?`<div class="connection-grid">${friends.map(u=>friendCard(u,true)).join('')}</div>`:emptyState(state.query?'Chưa tìm thấy người bạn này.':'Cùng nhau bắt đầu một kết nối.','Tìm kiếm mọi người bên dưới và gửi lời mời kết bạn.')}</section><section class="editorial-section discover-section"><div class="section-heading"><div><p class="overline">THÊM NHỮNG NGƯỜI CÙNG QUAN TÂM</p><h2>Khám phá mọi người.</h2></div><span class="muted-copy">${discover.length} người</span></div>${discover.length?`<div class="connection-grid">${discover.map(u=>friendCard(u,false)).join('')}</div>`:emptyState('Bạn đã xem hết mọi người.','Những thành viên mới sẽ xuất hiện tại đây.')}</section>`;
+  const query=normalizeSearch(state.query.trim());
+  const requests=state.friendRequests.map(r=>r.user);
+  const discover=state.users.filter(u=>u.friendship!=='friends'&&!requests.some(r=>r.id===u.id));
+  const sets={friends:state.friends,requests,discover};
+  const matched=sets[state.friendTab].filter(u=>normalizeSearch(u.name+' '+u.email).includes(query)).slice().sort((a,b)=>a.name.localeCompare(b.name,'vi')*(state.friendSort==='reverse'?-1:1));
+  const pages=Math.max(1,Math.ceil(matched.length/12));state.friendPage=Math.min(pages,Math.max(1,state.friendPage));
+  const start=(state.friendPage-1)*12,visible=matched.slice(start,start+12);
+  return `<section class="connections-page"><header class="connections-heading"><div><h1>Kết nối</h1><p>Những người bạn, những cuộc hẹn.</p></div><span class="connections-total">${state.friends.length} bạn bè</span></header>
+    <div class="connections-panel"><div class="connections-controls"><div class="connections-tabs" aria-label="Nhóm kết nối">${[['friends','Bạn bè'],['requests','Lời mời'],['discover','Khám phá']].map(([key,label])=>`<button type="button" data-action="friend-tab" data-tab="${key}" class="${key===state.friendTab?'active':''}" aria-pressed="${key===state.friendTab}">${label}<span>${sets[key].length}</span></button>`).join('')}</div>${searchBox('friend-search','Tìm tên hoặc email')}</div>
+    <div class="connections-list-heading"><p role="status">${matched.length?`${start+1}–${Math.min(start+12,matched.length)} / ${matched.length} người`:'0 người'}</p><label>Sắp xếp <select id="friend-sort"><option value="name" ${state.friendSort==='name'?'selected':''}>Tên A–Z</option><option value="reverse" ${state.friendSort==='reverse'?'selected':''}>Tên Z–A</option></select></label></div>
+    ${visible.length?`<ul class="connections-list">${visible.map(u=>friendCard(u,state.friendTab==='friends')).join('')}</ul>`:emptyState(query?'Không tìm thấy kết nối':state.friendTab==='requests'?'Chưa có lời mời':state.friendTab==='friends'?'Chưa có bạn bè':'Chưa có gợi ý',query?'Thử tên hoặc email khác.':'')}
+    ${pages>1?`<nav class="connections-pagination" aria-label="Trang kết nối"><button class="btn secondary small" data-action="friend-page" data-page-number="${state.friendPage-1}" ${state.friendPage===1?'disabled':''}>Trước</button><span>Trang ${state.friendPage} / ${pages}</span><button class="btn secondary small" data-action="friend-page" data-page-number="${state.friendPage+1}" ${state.friendPage===pages?'disabled':''}>Sau</button></nav>`:''}</div></section>`;
 }
+
 function inboxItems() {
   return [...state.invitations.map(i=>({...i,type:'events',person:i.from,title:i.event?.title || 'Lời mời tham gia sự kiện',copy:`${i.from?.name || 'Một người bạn'} mời bạn tham gia`,event:i.event,accept:'invite-accept',reject:'invite-reject'})),...state.friendRequests.map(r=>({...r,type:'friends',person:r.user,title:r.user.name,copy:'Muốn kết nối và trở thành bạn bè với bạn',accept:'friend-accept',reject:'friend-reject'})),...state.joinRequests.map(r=>({...r,type:'requests',person:r.user,title:r.event.title,copy:`${r.user.name} muốn tham gia cuộc hẹn của bạn`,event:r.event,accept:'join-accept',reject:'join-reject'}))].sort((a,b)=>new Date(b.at||0)-new Date(a.at||0));
 }
 function inboxPage() {
   const items=inboxItems(), visible=items.filter(i=>state.inboxTab==='all'||i.type===state.inboxTab);
-  return `${pageIntro('KẾT NỐI / HỘP THƯ','Những lời hẹn <span>dành cho bạn.</span>','Phản hồi một lời mời, bắt đầu một cuộc gặp gỡ.',false)}<div class="collection-toolbar"><div class="editorial-tabs" aria-label="Lọc lời mời">${[['all','Tất cả'],['events','Sự kiện'],['friends','Kết bạn'],['requests','Xin tham gia']].map(([key,label])=>`<button data-inbox="${key}" class="${key===state.inboxTab?'active':''}" aria-pressed="${key===state.inboxTab}">${label} <small>${items.filter(i=>key==='all'||i.type===key).length}</small></button>`).join('')}</div></div><div class="inbox-list">${visible.length?visible.map(i=>`<article class="invitation-row">${avatar(i.person,'large')}<div class="invitation-copy"><p class="overline">${{events:'LỜI MỜI THAM GIA',friends:'LỜI MỜI KẾT BẠN',requests:'YÊU CẦU THAM GIA'}[i.type]}</p><h2>${esc(i.title)}</h2><p>${esc(i.copy)}</p>${i.event?`<p class="invitation-meta">${esc(dateParts(i.event.startsAt).full)}<span>·</span>${esc(i.event.location)}</p>`:''}</div><div class="invitation-actions"><button class="btn small" data-action="${i.accept}" data-id="${i.id}">${i.type==='requests'?'Duyệt yêu cầu':i.type==='events'?'Tham gia':'Chấp nhận'} ${arrowRight}</button><button class="quiet-link muted" data-action="${i.reject}" data-id="${i.id}">Từ chối</button></div></article>`).join(''):emptyState('Hộp thư đã được xem hết.','Những lời mời và yêu cầu mới sẽ xuất hiện ở đây.','browse-events','Khám phá sự kiện')}</div>`;
+  return `${pageIntro('KẾT NỐI / HỘP THƯ','Những lời hẹn <span>dành cho bạn.</span>','Phản hồi một lời mời, bắt đầu một cuộc gặp gỡ.',false)}<div class="collection-toolbar"><div class="editorial-tabs" aria-label="Lọc lời mời">${[['all','Tất cả'],['events','Sự kiện'],['friends','Kết bạn'],['requests','Xin tham gia']].map(([key,label])=>`<button data-inbox="${key}" class="${key===state.inboxTab?'active':''}" aria-pressed="${key===state.inboxTab}">${label} <small>${items.filter(i=>key==='all'||i.type===key).length}</small></button>`).join('')}</div></div><div class="inbox-list">${visible.length?visible.map(i=>`<article class="invitation-row">${avatar(i.person,'large')}<div class="invitation-copy"><p class="overline">${{events:'LỜI MỜI THAM GIA',friends:'LỜI MỜI KẾT BẠN',requests:'YÊU CẦU THAM GIA'}[i.type]}</p><h2>${esc(i.title)}</h2>${i.event?`<button class="quiet-link" data-action="detail" data-id="${i.event.id}">Xem sự kiện ${arrowRight}</button>`:''}<p>${esc(i.copy)}</p>${i.event?`<p class="invitation-meta">${esc(dateParts(i.event.startsAt).full)}<span>·</span>${esc(i.event.location)}</p>`:''}</div><div class="invitation-actions"><button class="btn small" data-action="${i.accept}" data-id="${i.id}">${i.type==='requests'?'Duyệt yêu cầu':i.type==='events'?'Tham gia':'Chấp nhận'} ${arrowRight}</button><button class="quiet-link muted" data-action="${i.reject}" data-id="${i.id}">Từ chối</button></div></article>`).join(''):emptyState('Hộp thư đã được xem hết.','Những lời mời và yêu cầu mới sẽ xuất hiện ở đây.','browse-events','Khám phá sự kiện')}</div>`;
 }
 function render() {
   window.EventlyMeadow?.stop();
   if (!state.user) { if(state.page==='events')publicShell(eventsPage());else {app.innerHTML=landing();requestAnimationFrame(()=>{if(!state.authOpen)window.EventlyMeadow?.mount();});}return; }
-  shell(({home,events:eventsPage,friends:friendsPage,inbox:inboxPage})[state.page]());
+  shell(({home,events:eventsPage,friends:friendsPage,inbox:inboxPage,profile:profilePage,activity:activityPage})[state.page]());
 }
 async function refresh() {
   const [events,friends,users,friendRequests,joinRequests,activity,inbox] = await Promise.all(['events','friends','users','friend-requests','join-requests','activity','inbox'].map(action=>api(action)));
@@ -342,7 +371,7 @@ function showDialog(html, focusSelector = 'input:not([type=radio]),textarea,sele
   requestAnimationFrame(() => (modalRoot.querySelector(focusSelector) || modalRoot.querySelector('button'))?.focus({preventScroll:true}));
 }
 function modal(title, subtitle, html) {
-  showDialog(`<div class="overlay" data-action="overlay-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description"><header class="modal-top"><div><p class="overline">EVENTLY / MỖI CUỘC HẸN LÀ MỘT KỶ NIỆM</p><h2 id="dialog-title">${esc(title)}</h2><p id="dialog-description">${esc(subtitle)}</p></div><button class="icon-btn plain" data-action="close-modal" aria-label="Đóng hộp thoại">${closeIcon}</button></header>${html}</section></div>`);
+  showDialog(`<div class="overlay" data-action="overlay-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description"><header class="modal-top"><div><p class="overline">EVENTLY</p><h2 id="dialog-title">${esc(title)}</h2><p id="dialog-description">${esc(subtitle)}</p></div><button class="icon-btn plain" data-action="close-modal" aria-label="Đóng">${closeIcon}</button></header>${html}</section></div>`);
 }
 function createModal(e) {
   modal(e?'Chỉnh sửa cuộc hẹn.':'Tạo một cuộc hẹn mới.',e?'Thay đổi một chút, để mọi người dễ dàng gặp nhau hơn.':'Một chút thông tin để bạn bè cùng lên lịch.',`<form id="event-form" data-id="${e?.id||''}"><div class="form-grid"><div class="field full"><label for="event-title">Tên cuộc hẹn</label><input id="event-title" name="title" placeholder="Ví dụ: Một chiều cà phê cùng nhau" maxlength="160" required value="${esc(e?.title||'')}"></div><div class="field"><label for="event-date">Thời gian</label><input id="event-date" name="startsAt" type="datetime-local" value="${e?localInputTime(e.startsAt):''}" required></div><div class="field"><label for="event-location">Địa điểm</label><input id="event-location" name="location" placeholder="Mình sẽ gặp nhau ở đâu?" value="${esc(e?.location||'')}" required></div><div class="field"><label for="event-category">Loại hoạt động</label><select id="event-category" name="category">${eventFilters.categories.map(([key,label])=>`<option value="${key}" ${eventFilters.category(e||{})===key?'selected':''}>${label}</option>`).join('')}</select></div><div class="field"><label for="event-area">Khu vực</label><input id="event-area" name="area" maxlength="80" placeholder="Ví dụ: Tây Hồ, Hà Nội" value="${esc(e?.area||'')}"></div><fieldset class="visibility-field full"><legend>Ai có thể tham gia?</legend><div class="visibility-options"><label><input type="radio" name="visibility" value="public" ${e?.visibility!=='private'?'checked':''}><span><b>Công khai</b><small>Mọi người có thể gửi yêu cầu tham gia.</small></span></label><label><input type="radio" name="visibility" value="private" ${e?.visibility==='private'?'checked':''}><span><b>Riêng tư</b><small>Chia sẻ cuộc hẹn với bạn bè được mời.</small></span></label></div></fieldset><div class="field full"><label for="event-description">Lời nhắn cho mọi người</label><textarea id="event-description" name="description" rows="4" placeholder="Kể thêm một chút về cuộc hẹn...">${esc(e?.description||'')}</textarea></div></div><p class="form-error" role="alert" hidden></p><div class="form-actions">${e?`<button class="quiet-link danger" type="button" data-action="delete-event" data-id="${e.id}">Xóa sự kiện</button>`:''}<span class="action-spacer"></span><button class="btn secondary" type="button" data-action="close-modal">Để sau</button><button class="btn">${e?'Lưu thay đổi':'Tạo cuộc hẹn'} ${arrowRight}</button></div></form>`);
@@ -352,16 +381,39 @@ function detailModal(e) {
   const d=dateParts(e.startsAt), owned=isOwner(e), invitation=state.invitations.find(i=>i.eventId===e.id);
   const action=!owned&&new Date(e.startsAt)<new Date()?'<span class="status-label">Sự kiện đã kết thúc.</span>':!state.user?`<button class="btn" data-action="join" data-id="${e.id}">Tham gia sự kiện ${arrowRight}</button>`:owned?`<button class="btn secondary" data-action="edit-event" data-id="${e.id}">Chỉnh sửa</button><button class="btn" data-action="invite-friend" data-id="${e.id}">Mời bạn bè ${icons.plus}</button>`:invitation?`<button class="btn" data-action="invite-accept" data-id="${invitation.id}">Chấp nhận lời mời ${arrowRight}</button>`:e.joined?'<span class="status-label">Bạn sẽ tham gia cuộc hẹn này.</span>':e.request==='pending'?'<button class="btn secondary" disabled>Đã gửi yêu cầu</button>':e.visibility==='public'?`<button class="btn" data-action="join" data-id="${e.id}">Gửi yêu cầu tham gia ${arrowRight}</button>`:'<span class="status-label">Sự kiện riêng tư · cần lời mời để tham gia.</span>';
   const people=(e.attendees||[]).map(id=>id===state.user?.id?state.user:state.users.find(u=>u.id===id)).filter(Boolean);
-  modal(e.title,e.ownerName?`Được tổ chức bởi ${e.ownerName}.`:'Một dịp để dành thời gian cho nhau.',`<div class="detail-calendar"><span class="detail-date">${d.day}<small>${d.month}</small></span><div><p>${esc(d.weekday)}, ${esc(d.full)}</p><span>${esc(d.time)} · ${e.visibility==='private'?'Riêng tư':'Công khai'}</span></div></div><div class="detail-location">${icons.pin}<div><span>ĐỊA ĐIỂM</span><p>${esc(e.location)}</p></div></div><p class="detail-description">${esc(e.description||'Một cuộc hẹn đáng nhớ đang chờ mọi người.')}</p><div class="detail-participants"><div class="avatar-stack">${people.slice(0,5).map(u=>avatar(u)).join('')}</div><span>${attendeeCount(e)} người sẽ tham gia</span></div><div class="form-actions">${action}</div>`);
+  const host=e.ownerName||state.users.find(u=>u.id===e.owner)?.name||(owned?state.user.name:'Thành viên Evently');
+  showDialog(`<div class="overlay event-detail-overlay" data-action="overlay-close"><section class="modal event-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    <header class="event-detail-header"><div><div class="event-detail-tags"><span>${esc(eventFilters.categoryLabel(e))}</span><span>${e.visibility==='private'?'Riêng tư':'Công khai'}</span></div><h2 id="dialog-title" tabindex="-1">${esc(e.title)}</h2></div><button type="button" class="icon-btn plain" data-action="close-modal" aria-label="Đóng chi tiết sự kiện">${closeIcon}</button></header>
+    <div class="event-detail-scroll"><div class="event-detail-layout">
+      <figure class="event-detail-image">${eventCover(e)||eventPoster(e)}<figcaption class="sr-only">Ảnh sự kiện ${esc(e.title)}</figcaption></figure>
+      <section class="event-detail-info" aria-labelledby="event-info-heading"><h3 id="event-info-heading">Thông tin sự kiện</h3>
+        <div class="event-info-row"><span class="event-info-icon">${icons.calendar}</span><div><h4>Thời gian</h4><time datetime="${esc(e.startsAt)}">${esc(d.weekday)}, ${esc(d.full)}</time><p>${esc(d.time)}</p></div></div>
+        <div class="event-info-row"><span class="event-info-icon">${icons.pin}</span><div><h4>Địa điểm</h4><p>${esc(e.location)}</p></div></div>
+        <div class="event-info-row"><span class="event-info-icon">${icons.users}</span><div><h4>Người tổ chức</h4><p>${esc(host)}</p></div></div>
+        <div class="event-detail-people"><div class="avatar-stack">${people.slice(0,4).map(u=>avatar(u)).join('')}</div><span>${attendeeCount(e)} người tham gia</span></div>
+      </section>
+      <section class="event-detail-intro" aria-labelledby="event-intro-heading"><h3 id="event-intro-heading">Giới thiệu</h3><p>${esc(e.description||'Chưa có mô tả cho sự kiện này.')}</p></section>
+    </div></div>
+    <footer class="event-detail-footer"><span class="event-detail-footer-note">${e.visibility==='private'?'Tham gia qua lời mời':'Sự kiện công khai'}</span><div class="event-detail-actions">${action}</div></footer>
+  </section></div>`, '#dialog-title');
 }
 function inviteModal(eventId) {
   const event=state.events.find(e=>e.id===eventId); if (!event) return;
   const friends=state.friends.filter(f=>!event.attendees.includes(f.id));
   modal('Thêm bạn, thêm niềm vui.',`Mời bạn bè đến ${event.title}.`,friends.length?`<div class="invite-friends-list">${friends.map(f=>`<div class="invite-friend-row">${avatar(f)}<div><strong>${esc(f.name)}</strong><small>${esc(f.email)}</small></div><button class="btn secondary small" data-action="send-invite" data-event="${eventId}" data-id="${f.id}">Gửi lời mời ${icons.plus}</button></div>`).join('')}</div>`:emptyState('Chưa có người bạn nào để mời.','Kết nối thêm bạn bè hoặc mọi người đã tham gia cuộc hẹn.'));
 }
-function accountModal() { modal('Không gian của bạn.', 'Những kết nối và cuộc hẹn bắt đầu từ đây.', `<div class="account-details">${avatar(state.user,'large')}<h3>${esc(state.user.name)}</h3><p>${esc(state.user.email)}</p></div><div class="account-summary"><span><b>${state.friends.length}</b> bạn bè</span><span><b>${state.events.filter(e=>e.owner===state.user.id).length}</b> sự kiện tổ chức</span></div><div class="form-actions"><button class="btn secondary" data-action="logout">Đăng xuất ${logoutIcon}</button></div>`); }
+function accountModal() { navigate('profile'); }
+function profilePage() {
+  const owned=state.events.filter(e=>isOwner(e));
+  const joined=state.events.filter(e=>e.joined&&!isOwner(e));
+  const next=upcoming().filter(e=>isOwner(e)||e.joined);
+  return `<section class="profile-page"><header class="profile-cover" aria-hidden="true"></header><div class="profile-layout"><aside class="profile-identity">${avatar(state.user,'profile-avatar')}<h1>${esc(state.user.name)}</h1><p class="profile-email">${esc(state.user.email)}</p>${state.user.bio?`<p class="profile-bio">${esc(state.user.bio)}</p>`:''}<button class="btn secondary" data-action="edit-profile">Sửa hồ sơ</button><button class="quiet-link muted" data-action="logout">Đăng xuất ${logoutIcon}</button></aside><div class="profile-content"><div class="profile-stats"><div><strong>${owned.length}</strong><span>Tổ chức</span></div><div><strong>${joined.length}</strong><span>Tham gia</span></div><button data-page="friends"><strong>${state.friends.length}</strong><span>Bạn bè</span></button></div><section><div class="section-heading"><h2>Lịch của bạn</h2><button class="quiet-link" data-page="events">Sự kiện ${arrowRight}</button></div>${next.length?eventTimeline(next):emptyState('Lịch còn trống','','browse-events','Khám phá sự kiện')}</section></div></div></section>`;
+}
+function editProfile() {
+  modal('Sửa hồ sơ','',`<form id="profile-form"><div class="field"><label for="profile-name">Họ và tên</label><input id="profile-name" name="name" maxlength="80" required value="${esc(state.user.name)}"></div><div class="field"><label for="profile-bio">Giới thiệu</label><textarea id="profile-bio" name="bio" maxlength="200" rows="3" placeholder="Một chút về bạn">${esc(state.user.bio||'')}</textarea></div><p class="form-error" role="alert" hidden></p><div class="form-actions"><button type="button" class="btn secondary" data-action="close-modal">Hủy</button><button type="submit" class="btn">Lưu</button></div></form>`);
+}
 function routeURL(page) {
-  const hash = page === 'events' ? '#events' : '';
+  const hash = memberPages.includes(page) ? `#${page}` : '';
   if(location.hash!==hash)history.pushState(null,'',`${location.pathname}${location.search}${hash}`);
 }
 async function browseEvents(updateURL = true) {
@@ -383,11 +435,11 @@ function navigate(page, updateURL = true) {
 function requireAccount(intent) { state.authIntent=intent;authModal('login'); }
 function resetMemberState() {
   ++publicLoadId;
-  Object.assign(state,{token:'',user:null,authOpen:false,authIntent:null,events:[],friends:[],users:[],invitations:[],friendRequests:[],joinRequests:[],activity:[],query:'',eventSelection:eventFilters.emptySelection(),eventFilterDraft:null,eventFilterGroup:'categories',eventsLoading:false,eventsError:''});
+  Object.assign(state,{token:'',user:null,authOpen:false,authIntent:null,events:[],friends:[],users:[],invitations:[],friendRequests:[],joinRequests:[],activity:[],activityPage:1,activityFilter:'all',friendTab:'friends',friendPage:1,query:'',eventSelection:eventFilters.emptySelection(),eventFilterDraft:null,eventFilterGroup:'categories',eventsLoading:false,eventsError:''});
   localStorage.removeItem('evently-token');
 }
 async function routeFromLocation() {
-  const page=location.hash==='#events'?'events':'home';
+  const page=memberPages.includes(location.hash.slice(1))?location.hash.slice(1):'home';
   if(page===state.page)return;
   closeModal();await navigate(page,false);
 }
@@ -407,6 +459,11 @@ document.addEventListener('click', async event => {
       if (form?.querySelector('[type=submit]')?.disabled) return;
       authModal(state.authMode==='login'?'register':'login', Object.fromEntries(new FormData(form)));
     }
+    else if(action==='friend-tab'){state.friendTab=button.dataset.tab;state.friendPage=1;render();document.querySelector(`[data-tab="${state.friendTab}"]`)?.focus({preventScroll:true});}
+    else if(action==='friend-page'){state.friendPage=Number(button.dataset.pageNumber);render();document.querySelector('.connections-controls')?.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
+    else if(action==='activity-page'){state.activityPage=Number(button.dataset.index);render();}
+    else if(action==='event-scope'){state.eventSelection.scopes=button.dataset.scope==='all'?[]:[button.dataset.scope];render();}
+    else if (action==='google-login') toast('Đăng nhập Google chưa được cấu hình OAuth.',true);
     else if (action==='toggle-password') {
       const input = document.querySelector('#auth-password'), visible = input.type === 'password';
       input.type = visible ? 'text' : 'password';
@@ -436,10 +493,11 @@ document.addEventListener('click', async event => {
     else if (action==='clear-event-filters') { state.query='';state.eventSelection=eventFilters.emptySelection();render();document.querySelector('.event-filter-trigger')?.focus(); }
     else if (action==='upcoming-events') { state.eventPeriod='upcoming';render(); }
     else if (action==='create') {if(state.user)createModal();else requireAccount({action:'create'});}
-    else if (action==='detail') detailModal(state.events.find(e=>e.id===id));
+    else if (action==='detail') detailModal(state.events.find(e=>e.id===id)||inboxItems().find(i=>i.event?.id===id)?.event);
     else if (action==='edit-event') createModal(state.events.find(e=>e.id===id));
     else if (action==='invite-friend') inviteModal(id);
     else if (action==='account') accountModal();
+    else if (action==='edit-profile') editProfile();
     else if (action==='logout') {await api('logout').catch(()=>{});closeModal();resetMemberState();state.page='events';await browseEvents();}
     else if (action==='delete-event') { const e=state.events.find(e=>e.id===id);modal('Xóa cuộc hẹn này?',e?.title||'Sự kiện sẽ được xóa khỏi lịch hẹn.',`<p class="muted-copy">Thông tin cuộc hẹn và các lời mời liên quan sẽ được gỡ bỏ.</p><div class="form-actions"><button class="btn secondary" data-action="edit-event" data-id="${id}">Quay lại</button><button class="btn" data-action="delete-confirm" data-id="${id}">Xóa cuộc hẹn</button></div>`); }
     else if (action==='unfriend') { const person=state.friends.find(u=>u.id===id);modal('Hủy kết nối bạn bè?',`Bạn và ${person?.name||'người bạn này'} sẽ không còn trong danh sách bạn bè của nhau.`,`<div class="form-actions"><button class="btn secondary" data-action="close-modal">Giữ kết nối</button><button class="btn" data-action="unfriend-confirm" data-id="${id}">Hủy kết bạn</button></div>`); }
@@ -466,18 +524,20 @@ document.addEventListener('click', async event => {
   } catch (error) { toast(error.message,true); if(button.isConnected)button.disabled=false; }
 });
 document.addEventListener('submit', async event => {
-  const form=event.target;if(!['auth-form','event-form'].includes(form.id))return;event.preventDefault();
+  const form=event.target;if(!['auth-form','event-form','profile-form'].includes(form.id))return;event.preventDefault();
   const submit=form.querySelector('button:not([type="button"])'),errorBox=form.querySelector('.form-error'),oldLabel=submit.innerHTML;
   if(submit.disabled)return;submit.disabled=true;submit.textContent='Đang lưu…';errorBox.hidden=true;
   try {
     const data=Object.fromEntries(new FormData(form));
-    if(form.id==='auth-form') {
+    if(form.id==='profile-form') {
+      state.user=await api('profile-update',data);closeModal();await refresh();toast('Đã lưu hồ sơ.');
+    } else if(form.id==='auth-form') {
       submit.textContent=state.authMode==='login'?'Đang đăng nhập…':'Đang tạo tài khoản…';
       const result=await api(state.authMode==='login'?'login':'register',data);
       if (!form.isConnected) return;
       const intent=state.authIntent;
       ++publicLoadId;
-      state.token=result.token;state.user=result.user;state.eventsLoading=false;state.eventsError='';state.page=intent||state.page==='events'?'events':'home';localStorage.setItem('evently-token',state.token);closeModal();routeURL(state.page);await refresh();
+      state.token=result.token;state.user=await api('me');state.eventsLoading=false;state.eventsError='';state.page=intent||state.page==='events'?'events':'home';localStorage.setItem('evently-token',state.token);closeModal();routeURL(state.page);await refresh();
       if(intent?.action==='join'){const selected=state.events.find(e=>e.id===intent.eventId);if(selected)detailModal(selected);else toast('Cuộc hẹn này không còn có sẵn.',true);}
       else if(intent?.action==='create')createModal();
       else window.scrollTo(0,0);
@@ -489,10 +549,12 @@ document.addEventListener('submit', async event => {
 });
 app.addEventListener('input', event => {
   if(!['event-search','friend-search'].includes(event.target.id))return;
-  const {id,value,selectionStart}=event.target;state.query=value;render();
+  const {id,value,selectionStart}=event.target;state.query=value;if(id==='friend-search')state.friendPage=1;render();
   const input=document.getElementById(id);input.focus();if(Number.isInteger(selectionStart)){try{input.setSelectionRange(selectionStart,selectionStart);}catch{}}
 });
 document.addEventListener('change', event => {
+  if(event.target.id==='activity-filter'){state.activityFilter=event.target.value;state.activityPage=1;render();document.querySelector('#activity-filter')?.focus({preventScroll:true});return;}
+  if(event.target.id==='friend-sort'){state.friendSort=event.target.value;state.friendPage=1;render();document.querySelector('#friend-sort')?.focus({preventScroll:true});return;}
   const input=event.target,group=eventFilterGroups().find(item=>item.key===input.dataset?.eventFilter);
   if(!state.eventFilterDraft || !group || !group.options.some(([key])=>key===input.value))return;
   const values=state.eventFilterDraft[group.key].filter(value=>value!==input.value);
@@ -523,4 +585,5 @@ async function init() {
   try{state.user=await api('me');await refresh();}
   catch{resetMemberState();if(state.page==='events')await browseEvents(false);else render();}
 }
+document.addEventListener('visibilitychange',()=>document.body.classList.toggle('effects-paused',document.hidden));
 init();

@@ -46,3 +46,10 @@ Mỗi yêu cầu là một JSON object trên một dòng, gồm `id`, `action`, 
 ```
 
 Dữ liệu được lưu tại `data.json` cạnh mã nguồn; có thể đổi bằng biến môi trường `DATA_FILE`. Web API ở `POST /api`, body có dạng `{ "action": "...", "payload": {} }`; token gửi trong `Authorization: Bearer ...`.
+
+## Dữ liệu mẫu bạn bè và lời mời
+
+Dừng server rồi chạy `npm run seed:social`, sau đó `npm start`.
+Lệnh dùng tài khoản có phiên đăng nhập còn hạn gần nhất (hoặc tài khoản thật đầu tiên), thêm 8 hồ sơ mẫu, 4 bạn bè, 2 lời mời kết bạn, 6 sự kiện tự tổ chức, 2 lời mời tham gia và 3 yêu cầu chờ duyệt. Có cả sự kiện Public/Private, sự kiện đã tham gia và yêu cầu đã gửi.
+
+Dữ liệu hiện có được sao lưu vào thư mục tạm trước khi thêm. Các bản ghi mẫu có khóa nhận diện để tránh tạo trùng. Ảnh bìa SVG được lưu trong `public/assets/events`; có thể tạo lại bằng `python3 scripts/generate-demo-covers.py`.

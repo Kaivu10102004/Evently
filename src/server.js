@@ -33,11 +33,18 @@ function execute(action, payload={}, token='') {
   if(action==='logout') { need(); db.sessions=db.sessions.filter(s=>s.token!==token); log(me.id,'auth.logout'); save(); return {ok:true}; }
   // Public discovery exposes only public event details, host display name and headcount.
   if(action==='public-events') return db.events.filter(e=>e.visibility==='public').map(e=>({
-    id:e.id,title:e.title,description:e.description,location:e.location,startsAt:e.startsAt,visibility:'public',category:eventFilters.category(e),area:eventFilters.area(e),
+    id:e.id,title:e.title,description:e.description,location:e.location,startsAt:e.startsAt,visibility:'public',category:eventFilters.category(e),area:eventFilters.area(e),...(e.cover?{cover:e.cover}:{}),
     ownerName:db.users.find(u=>u.id===e.owner)?.name||'Thành viên Evently',attendeeCount:e.attendees.length
   }));
-  if(action==='me') { need(); return publicUser(me); }
+  if(action==='me') { need(); return {...publicUser(me),bio:me.bio||''}; }
   need();
+  if(action==='profile-update') {
+    const name=typeof payload.name==='string'?payload.name.trim():'';
+    const bio=typeof payload.bio==='string'?payload.bio.trim():'';
+    if(!name||name.length>80)fail('Tên cần từ 1 đến 80 ký tự.');
+    if(bio.length>200)fail('Giới thiệu tối đa 200 ký tự.');
+    Object.assign(me,{name,bio});save();return {...publicUser(me),bio};
+  }
   const users=()=>db.users.filter(u=>u.id!==me.id);
   if(action==='users') return users().map(u=>({...publicUser(u), friendship:db.friends.some(f=>f.pair===pair(me.id,u.id))?'friends':db.friendRequests.some(r=>r.from===me.id&&r.to===u.id)?'sent':db.friendRequests.some(r=>r.from===u.id&&r.to===me.id)?'received':'none'}));
   if(action==='friends') return db.friends.filter(f=>f.pair.split(':').includes(me.id)).map(f=>publicUser(db.users.find(u=>u.id===f.pair.split(':').find(x=>x!==me.id)))).filter(Boolean);

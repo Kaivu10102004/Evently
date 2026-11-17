@@ -23,9 +23,18 @@ function seedDemo(dataFile, {now = new Date()} = {}) {
   }
   const missing = templates.filter(([key]) => !db.events.some(e => e.demoKey === key));
   const updates=db.events.filter(e=>metadata[e.demoKey]&&(e.category===undefined||e.area===undefined));
-  if(!missing.length&&!updates.length) return {added:0,updated:0,total:db.events.length,createdHost:false};
+  const parts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+  const date = key => parts.find(p => p.type === key).value;
+  const midnight = new Date(`${date('year')}-${date('month')}-${date('day')}T00:00:00+07:00`).getTime();
+  const day = 86400000;
+  // If today's evening has passed, start the upcoming examples tomorrow.
+  const shift = now.getTime() >= midnight + (18*60+30)*60000 ? 1 : 0;
+  const scheduled = new Map(templates.map(([key,offset,hour,minute]) => [key,new Date(midnight + (offset + (offset>=0?shift:0))*day + (hour*60+minute)*60000).toISOString()]));
+  const reschedules=db.events.filter(e=>scheduled.has(e.demoKey)&&e.startsAt!==scheduled.get(e.demoKey));
+  if(!missing.length&&!updates.length&&!reschedules.length) return {added:0,updated:0,rescheduled:0,total:db.events.length,createdHost:false};
   const backup = fs.existsSync(dataFile) ? path.join(os.tmpdir(),`evently-before-seed-${crypto.randomUUID()}.json`) : null;
   for(const e of updates){const [category,area]=metadata[e.demoKey];if(e.category===undefined)e.category=category;if(e.area===undefined)e.area=area;}
+  for(const e of reschedules)e.startsAt=scheduled.get(e.demoKey);
   let host = db.users.find(u => !u.demoHost) || db.users.find(u => u.demoHost === true);
   const createdHost = !host;
   if(!host) {
@@ -33,15 +42,9 @@ function seedDemo(dataFile, {now = new Date()} = {}) {
     host = {id:crypto.randomUUID(),name:'Evently Studio (mẫu)',email:'studio@evently.example',salt,hash:crypto.scryptSync(crypto.randomBytes(32),salt,64).toString('hex'),createdAt:now.toISOString(),demoHost:true};
     db.users.push(host);
   }
-  const parts = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
-  const date = key => parts.find(p => p.type === key).value;
-  const midnight = new Date(`${date('year')}-${date('month')}-${date('day')}T00:00:00+07:00`).getTime();
-  const day = 86400000;
-  // If today's evening has passed, start the upcoming examples tomorrow.
-  const shift = now.getTime() >= midnight + (18*60+30)*60000 ? 1 : 0;
   for(const [key,offset,hour,minute,title,location,copy] of missing) {
     const [category,area]=metadata[key];
-    const event = {id:crypto.randomUUID(),demoKey:key,category,area,owner:host.id,attendees:[host.id],createdAt:now.toISOString(),title,description:`Sự kiện mẫu để trải nghiệm Evently. ${copy}`,location,startsAt:new Date(midnight + (offset + (offset>=0?shift:0))*day + (hour*60+minute)*60000).toISOString(),visibility:'public'};
+    const event = {id:crypto.randomUUID(),demoKey:key,category,area,owner:host.id,attendees:[host.id],createdAt:now.toISOString(),title,description:`Sự kiện mẫu để trải nghiệm Evently. ${copy}`,location,startsAt:scheduled.get(key),visibility:'public'};
     db.events.push(event);
     db.logs.unshift({id:crypto.randomUUID(),actor:host.id,action:'event.create',detail:{eventId:event.id,demo:true},at:now.toISOString()});
   }
@@ -50,7 +53,7 @@ function seedDemo(dataFile, {now = new Date()} = {}) {
   const temporary = path.join(path.dirname(dataFile),`.evently-seed-${process.pid}-${crypto.randomUUID()}.tmp`);
   try {fs.writeFileSync(temporary,JSON.stringify(db,null,2),{mode:0o600});fs.renameSync(temporary,dataFile);}
   finally {if(fs.existsSync(temporary))fs.unlinkSync(temporary);}
-  return {added:missing.length,updated:updates.length,total:db.events.length,createdHost,backup};
+  return {added:missing.length,updated:updates.length,rescheduled:reschedules.length,total:db.events.length,createdHost,backup};
 }
 async function serverIsRunning(port) {
   return new Promise(resolve => {
@@ -62,7 +65,7 @@ async function serverIsRunning(port) {
 if(require.main === module) (async()=>{
   if(await serverIsRunning(Number(process.env.PORT||3000))) throw new Error('Hãy dừng server Evently trước khi tạo dữ liệu mẫu, rồi chạy lại npm start.');
   const result=seedDemo(process.env.DATA_FILE || path.join(__dirname,'..','data.json'));
-  console.log(`Đã thêm ${result.added}, bổ sung bộ lọc cho ${result.updated} sự kiện mẫu. Tổng số sự kiện: ${result.total}.`);
+  console.log(`Đã thêm ${result.added}, bổ sung thông tin cho ${result.updated}, cập nhật lịch cho ${result.rescheduled} sự kiện mẫu. Tổng số sự kiện: ${result.total}.`);
   if(result.backup)console.log(`Bản sao dữ liệu trước khi thêm: ${result.backup}`);
 })().catch(error=>{console.error(error.message);process.exitCode=1;});
 module.exports={seedDemo};
